@@ -4,6 +4,7 @@ class NTT {
  public:
   static void SetGlobals(void* work, void* table, void*);
   static bool Validate(uint64* data);
+  static void Square(uint64* data, int n);
 
   static void InitTable(int log2n);
   static void Forward(int log2n, int n, uint64* data);

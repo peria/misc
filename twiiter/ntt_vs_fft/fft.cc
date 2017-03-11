@@ -35,6 +35,16 @@ bool RFT::Validate(double* data) {
   return true;
 }
 
+void RFT::Square(double* data, int n) {
+  data[0] *= data[0];  // real number
+  data[1] *= data[1];  // real number
+  for (int i = 0; i < n; i += 2) {
+    double real = data[i], imag = data[i + 1];
+    data[i] = real * real - imag * imag;
+    data[i + 1] = real * imag + real * imag;
+  }
+}
+
 void FFT::InitTable(const int log2n) {
   double* ptr = g_table;
 

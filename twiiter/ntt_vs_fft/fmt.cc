@@ -55,6 +55,7 @@ int main() {
       RFT::InitTable(log2n);
       RFT::Forward(log2n, n, double_data);
       RFT::Forward(log2n, n, double_data);
+      RFT::Square(double_data, n);
       RFT::Backward(log2n, n, double_data);
     }
     auto fft_end = Clock::now();
@@ -64,6 +65,7 @@ int main() {
       NTT::InitTable(log2n);
       NTT::Forward(log2n, n, uint64_data);
       NTT::Forward(log2n, n, uint64_data);
+      NTT::Square(uint64_data, n);
       NTT::Backward(log2n, n, uint64_data);
     }
     auto ntt_end = Clock::now();
@@ -81,6 +83,7 @@ int main() {
     for (int count = 0; count < 10; ++count) {
       RFT::Forward(log2n, n, double_data);
       RFT::Forward(log2n, n, double_data);
+      RFT::Square(double_data, n);
       RFT::Backward(log2n, n, double_data);
     }
     auto fft_end = Clock::now();
@@ -90,6 +93,7 @@ int main() {
     for (int count = 0; count < 10; ++count) {
       NTT::Forward(log2n, n, uint64_data);
       NTT::Forward(log2n, n, uint64_data);
+      NTT::Square(uint64_data, n);
       NTT::Backward(log2n, n, uint64_data);
     }
     auto ntt_end = Clock::now();

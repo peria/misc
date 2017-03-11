@@ -94,6 +94,12 @@ bool NTT::Validate(uint64* data) {
     return true;
 }
 
+void NTT::Square(uint64* data, int n) {
+  for (int i = 0; i < n; ++i) {
+    data[i] = Mod::mul(data[i], data[i]);
+  }
+}
+
 void NTT::InitTable(int log2n) {
   uint64* ptr0 = g_table;
   uint64* ptr1 = g_inv_table;

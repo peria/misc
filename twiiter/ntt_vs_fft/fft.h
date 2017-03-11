@@ -18,6 +18,7 @@ class RFT {
  public:
   static void SetGlobals(void* work, void* table, void*);
   static bool Validate(double* data);
+  static void Square(double* data, int n);
 
   static void InitTable(const int log2n);
   static void Forward(const int log2n, const int real_n, double* x);
