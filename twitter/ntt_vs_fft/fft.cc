@@ -3,6 +3,7 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
+
 using namespace std;
 
 namespace {
@@ -66,11 +67,11 @@ void RFT::InitTable(const int log2n) {
 
 void FFT::Radix2(const int width, const int height,
                  double* ptr, double* x, double* y) {
-  for (int i = 0; i < width; ++i) {
-    double wr = ptr[2*i], wi = ptr[2*i+1];
-    for (int j = 0; j < height; ++j) {
+  for (int j = 0; j < height; ++j) {
+    for (int i = 0; i < width; ++i) {
       int ix0 = j * width + i, ix1 = ix0 + height * width;
       int iy0 = j * 2 * width + i, iy1 = iy0 + width;
+      double wr = ptr[2*i], wi = ptr[2*i+1];
       double tr = x[2*ix1] * wr - x[2*ix1+1] * wi;
       double ti = x[2*ix1] * wi + x[2*ix1+1] * wr;
       y[2*iy1  ] = x[2*ix0  ] - tr;

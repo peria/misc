@@ -1,6 +1,8 @@
 #include "ntt.h"
 
+#include <cstring>
 #include <iostream>
+
 using namespace std;
 
 namespace {
@@ -39,6 +41,11 @@ inline uint64 reduce(uint64 a1, uint64 a0) {
 
 inline uint64 mul(uint64 a, uint64 b) {
   // 64bit * 64bit -> 128bit
+#if defined(UINT128)
+  uint128 d = static_cast<uint128>(a) * static_cast<uint128>(b);
+  uint64 d1 = d >> 64;
+  uint64 d0 = d;
+#else
   uint64 a0 = a & kLowerMask, a1 = a >> 32;
   uint64 b0 = b & kLowerMask, b1 = b >> 32;
   uint64 c00 = a0 * b0, c11 = a1 * b1;
@@ -50,16 +57,18 @@ inline uint64 mul(uint64 a, uint64 b) {
   if (d0 < c00)
     ++c11;
   uint64 d1 = c11 + (c01 >> 32);
+#endif
+
   // [d1, d0] mod P -> e
   return reduce(d1, d0);
 }
 
 inline uint64 pow(uint64 a, uint64 e) {
-  uint64 res = 1;
-  for (; e; e >>= 1) {
+  uint64 res = (e & 1) ? a : 1;
+  for (; e >>= 1;) {
+    a = mul(a, a);
     if (e & 1)
       res = mul(res, a);
-    a = mul(a, a);
   }
   return res;
 }
@@ -164,12 +173,11 @@ void NTT::Backward(int log2n, int n, uint64* data) {
 
 void NTT::Radix2(const int width, const int height,
                  uint64* ptr, uint64* x, uint64* y) {
-  for (int i = 0; i < width; ++i) {
-    uint64 w = ptr[i];
-    for (int j = 0; j < height; ++j) {
+  for (int j = 0; j < height; ++j) {
+    for (int i = 0; i < width; ++i) {
       int ix0 = j * width + i, ix1 = ix0 + height * width;
       int iy0 = j * 2 * width + i, iy1 = iy0 + width;
-      uint64 t = Mod::mul(x[ix1], w);
+      uint64 t = Mod::mul(x[ix1], ptr[i]);
       y[iy1] = Mod::sub(x[ix0], t);
       y[iy0] = Mod::add(x[ix0], t);
     }

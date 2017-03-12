@@ -16,6 +16,7 @@ using Clock = chrono::system_clock;
 // Settings
 const int kMinPower = 10;
 const int kMaxPower = 20;
+const int kTryTimes = 10;
 const int kMaxN = 1 << kMaxPower;
 
 unique_ptr<uint64[]> g_data;
@@ -51,7 +52,7 @@ int main() {
   for (int log2n = kMinPower; log2n <= kMaxPower; ++log2n) {
     const int n = 1 << log2n;
     auto fft_start = Clock::now();
-    for (int count = 0; count < 10; ++count) {
+    for (int count = 0; count < kTryTimes; ++count) {
       RFT::InitTable(log2n);
       RFT::Forward(log2n, n, double_data);
       RFT::Forward(log2n, n, double_data);
@@ -61,7 +62,7 @@ int main() {
     auto fft_end = Clock::now();
 
     auto ntt_start = Clock::now();
-    for (int count = 0; count < 10; ++count) {
+    for (int count = 0; count < kTryTimes; ++count) {
       NTT::InitTable(log2n);
       NTT::Forward(log2n, n, uint64_data);
       NTT::Forward(log2n, n, uint64_data);
@@ -80,7 +81,7 @@ int main() {
     const int n = 1 << log2n;
     RFT::InitTable(log2n);
     auto fft_start = Clock::now();
-    for (int count = 0; count < 10; ++count) {
+    for (int count = 0; count < kTryTimes; ++count) {
       RFT::Forward(log2n, n, double_data);
       RFT::Forward(log2n, n, double_data);
       RFT::Square(double_data, n);
@@ -90,7 +91,7 @@ int main() {
 
     NTT::InitTable(log2n);
     auto ntt_start = Clock::now();
-    for (int count = 0; count < 10; ++count) {
+    for (int count = 0; count < kTryTimes; ++count) {
       NTT::Forward(log2n, n, uint64_data);
       NTT::Forward(log2n, n, uint64_data);
       NTT::Square(uint64_data, n);
