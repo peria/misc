@@ -82,11 +82,7 @@ void FFT::Radix2(const int width, const int height,
   }
 }
 
-void FFT::Forward(const int log2n, const int n, double* data) {
-  double* x = data;
-  double* y = g_work;
-  double* table = g_table;
-
+void FFT::Core(const int log2n, const int n, double* table, double* y, double* x) {
   int width = 1, height = n;
   for (int i = 0; i < log2n; ++i) {
     height /= 2;
@@ -98,6 +94,10 @@ void FFT::Forward(const int log2n, const int n, double* data) {
     table += 2 * width;
     width *= 2;
   }
+}
+
+void FFT::Forward(const int log2n, const int n, double* data) {
+  Core(log2n, n, g_table, g_work, data);
 }
 
 void FFT::Backward(const int log2n, const int n, double* data) {

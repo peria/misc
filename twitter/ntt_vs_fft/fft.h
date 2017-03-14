@@ -9,6 +9,7 @@ class FFT {
   static void Backward(const int log2n, const int n, double* data);
 
  private:
+  static void Core(const int log2n, const int n, double* table, double* work, double* data);
   static void Radix2(const int width, const int height,
                      double* ptr, double* x, double* y);
 };

@@ -7,6 +7,7 @@ class NTT {
   static void Square(uint64* data, int n);
 
   static void InitTable(int log2n);
+  static void Core(int log2n, int n, uint64* table, uint64* work, uint64* data);
   static void Forward(int log2n, int n, uint64* data);
   static void Backward(int log2n, int n, uint64* data);
 

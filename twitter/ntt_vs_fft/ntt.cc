@@ -104,9 +104,8 @@ bool NTT::Validate(uint64* data) {
 }
 
 void NTT::Square(uint64* data, int n) {
-  for (int i = 0; i < n; ++i) {
+  for (int i = 0; i < n; ++i)
     data[i] = Mod::mul(data[i], data[i]);
-  }
 }
 
 void NTT::InitTable(int log2n) {
@@ -130,11 +129,7 @@ void NTT::InitTable(int log2n) {
   }
 }
 
-void NTT::Forward(int log2n, int n, uint64* data) {
-  uint64* x = data;
-  uint64* y = g_work;
-  uint64* table = g_table;
-
+void NTT::Core(int log2n, int n, uint64* table, uint64* y, uint64* x) {
   int width = 1, height = n;
   for (int i = 0; i < log2n; ++i) {
     height /= 2;
@@ -148,27 +143,16 @@ void NTT::Forward(int log2n, int n, uint64* data) {
   }
 }
 
-void NTT::Backward(int log2n, int n, uint64* data) {
-  uint64* x = data;
-  uint64* y = g_work;
-  uint64* table = g_inv_table;
+void NTT::Forward(int log2n, int n, uint64* data) {
+  Core(log2n, n, g_table, g_work, data);
+}
 
-  int width = 1, height = n;
-  for (int i = 0; i < log2n; ++i) {
-    height /= 2;
-    if (i % 2) {
-      Radix2(width, height, table, y, x);
-    } else {
-      Radix2(width, height, table, x, (i == log2n - 1) ? x : y);
-    }
-    table += width;
-    width *= 2;
-  }
+void NTT::Backward(int log2n, int n, uint64* data) {
+  Core(log2n, n, g_inv_table, g_work, data);
 
   uint64 inv = Mod::inv(n);
-  for (int i = 0; i < n; ++i) {
+  for (int i = 0; i < n; ++i)
     data[i] = Mod::mul(data[i], inv);
-  }
 }
 
 void NTT::Radix2(const int width, const int height,
