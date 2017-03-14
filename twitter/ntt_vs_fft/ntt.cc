@@ -129,6 +129,18 @@ void NTT::InitTable(int log2n) {
   }
 }
 
+void NTT::Forward(int log2n, int n, uint64* data) {
+  Core(log2n, n, g_table, g_work, data);
+}
+
+void NTT::Backward(int log2n, int n, uint64* data) {
+  Core(log2n, n, g_inv_table, g_work, data);
+
+  uint64 inv = Mod::inv(n);
+  for (int i = 0; i < n; ++i)
+    data[i] = Mod::mul(data[i], inv);
+}
+
 void NTT::Core(int log2n, int n, uint64* table, uint64* y, uint64* x) {
   int width = 1, height = n;
   for (int i = 0; i < log2n; ++i) {
@@ -141,18 +153,6 @@ void NTT::Core(int log2n, int n, uint64* table, uint64* y, uint64* x) {
     table += width;
     width *= 2;
   }
-}
-
-void NTT::Forward(int log2n, int n, uint64* data) {
-  Core(log2n, n, g_table, g_work, data);
-}
-
-void NTT::Backward(int log2n, int n, uint64* data) {
-  Core(log2n, n, g_inv_table, g_work, data);
-
-  uint64 inv = Mod::inv(n);
-  for (int i = 0; i < n; ++i)
-    data[i] = Mod::mul(data[i], inv);
 }
 
 void NTT::Radix2(const int width, const int height,

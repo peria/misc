@@ -46,70 +46,8 @@ void RFT::Square(double* data, int n) {
   }
 }
 
-void FFT::InitTable(const int log2n) {
-  double* ptr = g_table;
-
-  int width = 1;
-  for (int k = 0; k < log2n; ++k) {
-    for (int i = 0; i < width; ++i) {
-      double wt = M_PI * i / width;
-      ptr[2*i] = cos(wt);
-      ptr[2*i+1] = -sin(wt);
-    }
-    ptr += 2 * width;
-    width *= 2;
-  }
-}
-
 void RFT::InitTable(const int log2n) {
   FFT::InitTable(log2n - 1);
-}
-
-void FFT::Radix2(const int width, const int height,
-                 double* ptr, double* x, double* y) {
-  for (int j = 0; j < height; ++j) {
-    for (int i = 0; i < width; ++i) {
-      int ix0 = j * width + i, ix1 = ix0 + height * width;
-      int iy0 = j * 2 * width + i, iy1 = iy0 + width;
-      double wr = ptr[2*i], wi = ptr[2*i+1];
-      double tr = x[2*ix1] * wr - x[2*ix1+1] * wi;
-      double ti = x[2*ix1] * wi + x[2*ix1+1] * wr;
-      y[2*iy1  ] = x[2*ix0  ] - tr;
-      y[2*iy1+1] = x[2*ix0+1] - ti;
-      y[2*iy0  ] = x[2*ix0  ] + tr;
-      y[2*iy0+1] = x[2*ix0+1] + ti;
-    }
-  }
-}
-
-void FFT::Core(const int log2n, const int n, double* table, double* y, double* x) {
-  int width = 1, height = n;
-  for (int i = 0; i < log2n; ++i) {
-    height /= 2;
-    if (i % 2) {
-      Radix2(width, height, table, y, x);
-    } else {
-      Radix2(width, height, table, x, (i == log2n - 1) ? x : y);
-    }
-    table += 2 * width;
-    width *= 2;
-  }
-}
-
-void FFT::Forward(const int log2n, const int n, double* data) {
-  Core(log2n, n, g_table, g_work, data);
-}
-
-void FFT::Backward(const int log2n, const int n, double* data) {
-  for (int i = 0; i < n; ++i) {
-    data[2*i+1] = -data[2*i+1];
-  }
-  Forward(log2n, n, data);
-  double inv = 1.0 / n;
-  for (int i = 0; i < n; ++i) {
-    data[2*i] *= inv;
-    data[2*i+1] *= -inv;
-  }
 }
 
 void RFT::Forward(const int log2n, const int real_n, double* x) {
@@ -159,4 +97,67 @@ void RFT::Backward(const int log2n, const int real_n, double* x) {
   x[1] = (xr - xi) * 0.5;
 
   FFT::Backward(log2n - 1, n, x);
+}
+
+void FFT::InitTable(const int log2n) {
+  double* ptr = g_table;
+
+  int width = 1;
+  for (int k = 0; k < log2n; ++k) {
+    for (int i = 0; i < width; ++i) {
+      double wt = M_PI * i / width;
+      ptr[2*i] = cos(wt);
+      ptr[2*i+1] = -sin(wt);
+    }
+    ptr += 2 * width;
+    width *= 2;
+  }
+}
+
+void FFT::Forward(const int log2n, const int n, double* data) {
+  Core(log2n, n, g_table, g_work, data);
+}
+
+void FFT::Backward(const int log2n, const int n, double* data) {
+  for (int i = 0; i < n; ++i) {
+    data[2*i+1] = -data[2*i+1];
+  }
+  Forward(log2n, n, data);
+  double inv = 1.0 / n;
+  for (int i = 0; i < n; ++i) {
+    data[2*i] *= inv;
+    data[2*i+1] *= -inv;
+  }
+}
+
+void FFT::Core(const int log2n, const int n, double* table,
+               double* y, double* x) {
+  int width = 1, height = n;
+  for (int i = 0; i < log2n; ++i) {
+    height /= 2;
+    if (i % 2) {
+      Radix2(width, height, table, y, x);
+    } else {
+      Radix2(width, height, table, x, (i == log2n - 1) ? x : y);
+    }
+    table += 2 * width;
+    width *= 2;
+  }
+}
+
+void FFT::Radix2(const int width, const int height,
+                 double* ptr, double* x, double* y) {
+  for (int j = 0; j < height; ++j) {
+    for (int i = 0; i < width; ++i) {
+      int ix0 = j * width + i, ix1 = ix0 + height * width;
+      int iy0 = j * 2 * width + i, iy1 = iy0 + width;
+      double wr = ptr[2*i], wi = ptr[2*i+1];
+      double tr = x[2*ix1] * wr - x[2*ix1+1] * wi;
+      double ti = x[2*ix1] * wi + x[2*ix1+1] * wr;
+      y[2*iy1  ] = x[2*ix0  ] - tr;
+      y[2*iy1+1] = x[2*ix0+1] - ti;
+      y[2*iy0  ] = x[2*ix0  ] + tr;
+      y[2*iy0+1] = x[2*ix0+1] + ti;
+    }
+  }
 }
