@@ -17,7 +17,7 @@ namespace Mod {
 
 const uint64 kLowerMask = (1ULL << 32) - 1;
 const uint64 P = 0xffffffff00000001ULL; // 2^64-2^32+1
-const uint64 kRoot = 0x185629DCDA58878CULL; // 2^32 th root of 1.
+const uint64 kRoot = 0x185629DCDA58878CULL; // 7^((P-1)/2^32) % P
 
 inline uint64 sub(uint64 a, uint64 b) {
   uint64 c = a - b;

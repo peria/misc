@@ -7,6 +7,7 @@
 
 #include "fft.h"
 #include "ntt.h"
+#include "mtt.h"
 using namespace std;
 
 namespace {
@@ -43,8 +44,10 @@ int main() {
 
   RFT::SetGlobals(g_work.get(), g_table.get(), g_inv_table.get());
   NTT::SetGlobals(g_work.get(), g_table.get(), g_inv_table.get());
+  MTT::SetGlobals(g_work.get(), g_table.get(), g_inv_table.get());
 
-  if (!RFT::Validate(double_data) || !NTT::Validate(uint64_data))
+  if (!RFT::Validate(double_data) || !NTT::Validate(uint64_data) ||
+      !MTT::Validate(uint64_data))
     return 0;
 
   // with table initialization
@@ -70,9 +73,20 @@ int main() {
       NTT::Backward(log2n, n, uint64_data);
     }
     auto ntt_end = Clock::now();
+
+    auto mtt_start = Clock::now();
+    for (int count = 0; count < kTryTimes; ++count) {
+      MTT::InitTable(log2n);
+      MTT::Forward(log2n, n, uint64_data);
+      MTT::Forward(log2n, n, uint64_data);
+      MTT::Square(uint64_data, n);
+      MTT::Backward(log2n, n, uint64_data);
+    }
+    auto mtt_end = Clock::now();
     cout << "2^" << log2n << " "
          << ToMs(fft_end, fft_start) << " "
-         << ToMs(ntt_end, ntt_start) << "\n";
+         << ToMs(ntt_end, ntt_start) << " "
+         << ToMs(mtt_end, mtt_start) << "\n";
   }
 
   // without table initialization
@@ -98,9 +112,21 @@ int main() {
       NTT::Backward(log2n, n, uint64_data);
     }
     auto ntt_end = Clock::now();
+
+    MTT::InitTable(log2n);
+    auto mtt_start = Clock::now();
+    for (int count = 0; count < kTryTimes; ++count) {
+      MTT::Forward(log2n, n, uint64_data);
+      MTT::Forward(log2n, n, uint64_data);
+      MTT::Square(uint64_data, n);
+      MTT::Backward(log2n, n, uint64_data);
+    }
+    auto mtt_end = Clock::now();
+
     cout << "2^" << log2n << " "
          << ToMs(fft_end, fft_start) << " "
-         << ToMs(ntt_end, ntt_start) << "\n";
+         << ToMs(ntt_end, ntt_start) << " "
+         << ToMs(mtt_end, mtt_start) << "\n";
   }
 
   return 0;
