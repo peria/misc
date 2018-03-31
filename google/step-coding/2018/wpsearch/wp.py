@@ -188,7 +188,15 @@ class WikipediaCollection(Collection):
                     row[8], # num_incoming_links
                 )
 
-class Index():
+class Word(object):
+    def __init__(self, category, id, reading, popularity):
+        self.category = category
+        self.id = id
+        self.reading = reading
+        self.populartiy = popularity
+
+
+class Index(object):
     """
     Arguments:
         filename: location of sqlite db
@@ -210,6 +218,16 @@ class Index():
     def search_category(self, query):
         return self.db.execute("SELECT category FROM postings WHERE category = ?;",
                                (query,)).fetchone()
+
+    def get_word(self, category, query):
+        row = self.db.execute("SELECT * FROM postings WHERE category = ? AND document_id = ?",
+                              (category, query)).fetchone()
+        if not row:
+            return None
+        return Word(row[0],  # category
+                    row[1],  # id
+                    row[2],  # reading
+                    row[3])  # popularity
 
     def generate(self):
         self.db.executescript("""
