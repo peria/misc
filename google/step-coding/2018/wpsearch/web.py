@@ -16,7 +16,7 @@ def action():
       return g_shiritori.initialize(query)
    is_cont, reply = g_shiritori.answer(query)
    if not is_cont:
-      g_shiritori.init()
+      g_shiritori.reset()
    return reply
 
 

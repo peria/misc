@@ -211,9 +211,10 @@ class Index(object):
     Returns:
         list: list of matching document ids
     """
-    def search(self, query):
-        pass
-        # searchの処理を書く
+    def search(self, category, initial):
+        sql = "SELECT * FROM postings WHERE category = ? AND reading LIKE '" + initial + "%' ORDER BY popularity DESC;"
+        rows = self.db.execute(sql, (category,)).fetchall()
+        return [Word(row[0], row[1], row[2], row[3]) for row in rows]
 
     def search_category(self, query):
         return self.db.execute("SELECT category FROM postings WHERE category = ?;",
