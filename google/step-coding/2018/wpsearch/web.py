@@ -2,16 +2,22 @@ import bottle
 import wp
 import json
 import os
+from shiritori import Shiritori
 
-collection = wp.WikipediaCollection("./data/wp.db")
+
+collection = wp.WikipediaCollection("data/wp.db")
+index = wp.Index("data/index.db", collection)
+
+shiritori = Shiritori(index)
 
 @bottle.route('/action')
 def action():
-   query = bottle.request.query.q
+   global shiritori
    bottle.response.content_type = 'application/json'
-   return json.dumps({
-       'textToSpeech': query
-   }, indent=2, separators=(',', ': '), ensure_ascii=False)
+
+   query = bottle.request.query.q
+   if not shiritori.is_initialized:
+      return shiritori.initialize(query)
 
 
 @bottle.route('/article/<title>')

@@ -207,6 +207,10 @@ class Index():
         pass
         # searchの処理を書く
 
+    def search_category(self, query):
+        return self.db.execute("SELECT category FROM postings WHERE category = ?;",
+                               (query,)).fetchone()
+
     def generate(self):
         self.db.executescript("""
         CREATE TABLE IF NOT EXISTS postings (
