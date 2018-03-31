@@ -217,7 +217,7 @@ class Index(object):
         return [Word(row[0], row[1], row[2], row[3]) for row in rows]
 
     def search_category(self, category):
-        sql = "SELECT * FROM postings WHERE category = ? LIMIT 10;"
+        sql = "SELECT * FROM postings WHERE category = ? LIMIT 20;"
         rows = self.db.execute(sql, (category,)).fetchall()
         return [Word(row[0], row[1], row[2], row[3]) for row in rows]
 

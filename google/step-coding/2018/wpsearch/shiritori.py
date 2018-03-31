@@ -26,15 +26,15 @@ class Shiritori(object):
             self.category = query
             print('Category:{0}'.format(self.category))
             # Output hints
-            print([word.id for word in words])
+            print([word.reading for word in words])
             return self.reply('{0} のカテゴリでしりとりしましょう。何から初めますか。'.format(query))
         else:
             return self.reply('そのカテゴリは知りません。'.format(query))
 
     def answer(self, query):
-        document = self.collection.get_document_by_id(query)
-        if not document:
-            return False, self.reply('そんな単語はありません。私の勝ちです')
+        # document = self.collection.get_document_by_id(query)
+        # if not document:
+        #     return False, self.reply('そんな単語はありません。私の勝ちです')
 
         word = self.index.get_word(self.category, query)
         if not word:
@@ -47,16 +47,19 @@ class Shiritori(object):
             return False, self.reply('既に {0}は言われています。私の勝ちです'.format(
                 query))
         self.used.add(query)
+        print(word.id, word.reading)
 
         # Accept user's answer
-        last = query[-1]
-        words = self.index.search(self.category, last, self.limit)
-        for word in words:
-            if word.id in self.used:
+        last = word.reading[-1]
+        print('last: ', last)
+        candidates = self.index.search(self.category, last, self.limit)
+        for cand in candidates:
+            if cand.id in self.used:
                 continue
-            self.used.add(word.id)
-            self.initial = word.reading[-1]
-            return True, self.reply(word.id)
+            self.used.add(cand.id)
+            self.initial = cand.reading[-1]
+            print([w.id for w in self.index.search(self.category, self.initial, 10)])
+            return True, self.reply(cand.id)
 
         return False, self.reply('もうありません。私の負けです')
 
