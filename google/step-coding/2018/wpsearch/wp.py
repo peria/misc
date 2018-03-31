@@ -1,16 +1,21 @@
 import sqlite3
 import sys
 import json
+import natto
+import time
+
 
 class Document():
     """Abstract class representing a document.
     """
 
+    @property
     def id(self):
         """Returns the id for the Document. Should be unique within the Collection.
         """
         raise NotImplementedError()
-    
+
+    @property
     def text(self):
         """Returns the text for the Document.
         """
@@ -22,7 +27,7 @@ class Collection():
 
     def get_document_by_id(self, id):
         """Gets the document for the given id.
-        
+
         Returns:
             Document: The Document for the given id.
         """
@@ -30,7 +35,7 @@ class Collection():
 
     def num_documents(self):
         """Returns the number of documents.
-        
+
         Returns:
             int: The number of documents in the collection.
         """
@@ -38,7 +43,7 @@ class Collection():
 
     def get_all_documents(self):
         """Creates an iterator that iterates through all documents in the collection.
-        
+
         Returns:
             Iterable[Document]: All the documents in the collection.
         """
@@ -69,6 +74,7 @@ class WikipediaArticle(Document):
         self.popularity_score = popularity_score
         self.num_incoming_links = num_incoming_links
 
+    @property
     def id(self):
         """Returns the id for the WikipediaArticle, which is its title.
 
@@ -79,6 +85,7 @@ class WikipediaArticle(Document):
         """
         return self.title
 
+    @property
     def text(self):
         """Returns the text for the Document.
 
@@ -98,7 +105,7 @@ class WikipediaCollection(Collection):
 
     def find_article_by_title(self, query):
         """Finds an article with a title matching the query.
-        
+
         Returns:
             WikipediaArticle: Returns matching WikipediaArticle.
         """
@@ -122,7 +129,7 @@ class WikipediaCollection(Collection):
         """Gets the document (i.e. WikipediaArticle) for the given id (i.e. title).
 
         Override for Collection.
-        
+
         Returns:
             WikipediaArticle: The WikipediaArticle for the given id.
         """
@@ -145,7 +152,7 @@ class WikipediaCollection(Collection):
         """Returns the number of documents (i.e. WikipediaArticle).
 
         Override for Collection.
-        
+
         Returns:
             int: The number of documents in the collection.
         """
@@ -157,7 +164,7 @@ class WikipediaCollection(Collection):
 
     def get_all_documents(self):
         """Creates an iterator that iterates through all documents (i.e. WikipediaArticles) in the collection.
-        
+
         Returns:
             Iterable[WikipediaArticle]: All the documents in the collection.
         """
@@ -180,3 +187,70 @@ class WikipediaCollection(Collection):
                     row[7], # popularity_score
                     row[8], # num_incoming_links
                 )
+
+class Index():
+    """
+    Arguments:
+        filename: location of sqlite db
+        collection: Collection to index and search
+    """
+    def __init__(self, filename, collection):
+        self.db = sqlite3.connect(filename)
+        self.collection = collection
+
+    """Searches the index for documents that match the query.
+
+    Returns:
+        list: list of matching document ids
+    """
+    def search(self, query):
+        pass
+        # searchの処理を書く
+
+    def generate(self):
+        self.db.executescript("""
+        CREATE TABLE IF NOT EXISTS postings (
+          category TEXT NOT NULL,
+          document_id TEXT NOT NULL,
+          reading TEXT NOT NULL,
+          popularity REAL NOT NULL
+        );
+        """)
+
+        def get_read(t):
+            rs = [node.feature.split(',')[-2] for node in
+                  parser.parse(t, as_nodes=True) if not node.is_eos()]
+            return None if '*' in rs else ''.join(rs)
+
+        parser = natto.MeCab()
+        cursor = self.db.cursor()
+        sql = """
+        INSERT INTO postings (category, document_id, reading, popularity)
+               VALUES (?, ?, ?, ?)"""
+        start_time = time.time()
+        count = 0
+        ALL_COUNT = 89648
+        for document in self.collection.get_all_documents():
+            id = document.id
+            reading = get_read(id)
+            if not reading:
+                continue
+
+            popular = document.popularity_score
+            cursor.executemany(sql, [(category, id, reading, popular)
+                                     for category in document.categories
+                                     if get_read(category)])
+            self.db.commit()
+            count += 1
+            if count % 1000 == 0:
+                t = time.time() - start_time
+                expect = int(t / count * ALL_COUNT - t)
+                print('{0}/{1} ({2:.2f}sec) {3}min{4:02d}sec to go.'.format(
+                      count, ALL_COUNT, t, expect // 60, expect % 60))
+                self.db.commit()
+        t = time.time() - start_time
+        expect = int(t / count * ALL_COUNT - t)
+        print('{0}/{1} ({2:.2}sec) {3}min{4:02d}sec to go.'.format(
+            count, ALL_COUNT, t, expect // 60, expect % 60))
+        self.db.commit()
+        cursor.close()
