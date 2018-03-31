@@ -211,14 +211,15 @@ class Index(object):
     Returns:
         list: list of matching document ids
     """
-    def search(self, category, initial):
-        sql = "SELECT * FROM postings WHERE category = ? AND reading LIKE '" + initial + "%' ORDER BY popularity DESC;"
-        rows = self.db.execute(sql, (category,)).fetchall()
+    def search(self, category, initial, limit):
+        sql = "SELECT * FROM postings WHERE category = ? AND reading LIKE '" + initial + "%' ORDER BY popularity DESC LIMIT ?;"
+        rows = self.db.execute(sql, (category, limit)).fetchall()
         return [Word(row[0], row[1], row[2], row[3]) for row in rows]
 
-    def search_category(self, query):
-        return self.db.execute("SELECT category FROM postings WHERE category = ?;",
-                               (query,)).fetchone()
+    def search_category(self, category):
+        sql = "SELECT * FROM postings WHERE category = ? LIMIT 10;"
+        rows = self.db.execute(sql, (category,)).fetchall()
+        return [Word(row[0], row[1], row[2], row[3]) for row in rows]
 
     def get_word(self, category, query):
         row = self.db.execute("SELECT * FROM postings WHERE category = ? AND document_id = ?",

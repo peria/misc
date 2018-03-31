@@ -12,8 +12,13 @@ def action():
    bottle.response.content_type = 'application/json'
 
    query = bottle.request.query.q
+   # Thanks, goodness
+   if query == 'ありがとう':
+      return g_shiritori.thanks()
+   # Set category
    if not g_shiritori.is_initialized:
       return g_shiritori.initialize(query)
+
    is_cont, reply = g_shiritori.answer(query)
    if not is_cont:
       g_shiritori.reset()
