@@ -31,11 +31,13 @@ class Shiritori(object):
         else:
             return self.reply('そのカテゴリは知りません。'.format(query))
 
-    def answer(self, query):
-        # document = self.collection.get_document_by_id(query)
-        # if not document:
-        #     return False, self.reply('そんな単語はありません。私の勝ちです')
+    def ask_categories(self):
+        categories = self.index.ask_categories()
+        print(categories)
+        self.reset()
+        return self.reply('カテゴリーを変えましょう。オススメ カテゴリーは {0} です。'.format(categories[0]))
 
+    def answer(self, query):
         word = self.index.get_word(self.category, query)
         if not word:
             return False, self.reply('{0}は{1}ではありません。私の勝ちです'.format(
@@ -59,6 +61,9 @@ class Shiritori(object):
             self.used.add(cand.id)
             self.initial = cand.reading[-1]
             print([w.id for w in self.index.search(self.category, self.initial, 10)])
+            if cand.reading[-1] == 'ン':
+              return False, self.reply('{0}。 ン で終わったので私の負けです'.format(cand.id))
+
             return True, self.reply(cand.id)
 
         return False, self.reply('もうありません。私の負けです')

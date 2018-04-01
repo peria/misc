@@ -162,14 +162,37 @@ class WikipediaCollection(Collection):
             self._cached_num_documents = num_documents
         return self._cached_num_documents
 
-    def get_all_documents(self):
+    def get_all_documents(self, use_alternate=False):
         """Creates an iterator that iterates through all documents (i.e. WikipediaArticles) in the collection.
 
         Returns:
             Iterable[WikipediaArticle]: All the documents in the collection.
         """
         c = self.db.cursor()
-        c.execute("SELECT title, text, opening_text, auxiliary_text, categories, headings, wiki_text, popularity_score, num_incoming_links FROM articles")
+        sql = "SELECT title, text, opening_text, auxiliary_text, categories, headings, wiki_text, popularity_score, num_incoming_links FROM articles"
+        c.execute(sql)
+        BLOCK_SIZE = 1000
+        while True:
+            block = c.fetchmany(BLOCK_SIZE)
+            if len(block) == 0:
+                break
+            for row in block:
+                yield WikipediaArticle(self,
+                    row[0], # title
+                    row[1], # text
+                    row[2], # opening_text
+                    json.loads(row[3]), # auxiliary_text
+                    json.loads(row[4]), # categories
+                    json.loads(row[5]), # headings
+                    row[6], # wiki_text
+                    row[7], # popularity_score
+                    row[8], # num_incoming_links
+                )
+        if not use_alternate:
+          return
+
+        sql = "SELECT redirects.src, articles.text, articles.opening_text, articles.auxiliary_text, articles.categories, articles.headings, articles.wiki_text, articles.popularity_score, articles.num_incoming_links FROM redirects, articles WHERE redirects.dst = articles.title"
+        c.execute(sql)
         BLOCK_SIZE = 1000
         while True:
             block = c.fetchmany(BLOCK_SIZE)
@@ -221,6 +244,12 @@ class Index(object):
         rows = self.db.execute(sql, (category,)).fetchall()
         return [Word(row[0], row[1], row[2], row[3]) for row in rows]
 
+    def ask_categories(self):
+        sql = "SELECT DISTINCT category FROM postings ORDER BY RANDOM() LIMIT 10;"
+        rows = self.db.execute(sql).fetchall()
+        return [row[0] for row in rows]
+
+
     def get_word(self, category, query):
         row = self.db.execute("SELECT * FROM postings WHERE category = ? AND document_id = ?",
                               (category, query)).fetchone()
@@ -253,8 +282,8 @@ class Index(object):
                VALUES (?, ?, ?, ?)"""
         start_time = time.time()
         count = 0
-        ALL_COUNT = 89648
-        for document in self.collection.get_all_documents():
+        ALL_COUNT = 89648 + 182049
+        for document in self.collection.get_all_documents(True):
             id = document.id
             reading = get_read(id)
             if not reading:
