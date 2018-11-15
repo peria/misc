@@ -7,11 +7,10 @@
 Fft::Fft(const int64 n, const int64 log2n, const Radix radix,
          std::vector<double> &work, std::vector<double> &table)
     : n(n), log2n(log2n), log4n(log2n > 1 ? 2 - (log2n + 2) % 3 : 0),
-      log8n(log2n > 1 ? (log2n - log4n) / 3 : 0), radix(radix), work_(work),
+      log8n(log2n > 1 ? (log2n - log4n * 2) / 3 : 0), radix(radix), work_(work),
       table_(table) {
   int64 height = n;
   Complex *tbl = reinterpret_cast<Complex *>(table_.data());
-  Complex *tbl0 = tbl;
   for (int64 i = 0; i < log8n; ++i) {
     height /= 8;
     setTable(8, height, tbl);
@@ -43,42 +42,30 @@ void Fft::run(const Direction dir, std::vector<double> &data) const {
   int width = 1, height = n;
   for (int64 i = 0; i < log8n; ++i) {
     height /= 8;
-    if (height > 1) {
-      if (i % 2) {
-        radix8(width, height, table, y, x);
-      } else {
-        radix8(width, height, table, x, y);
-      }
-      data_in_x = !data_in_x;
+    if (data_in_x) {
+      radix8(width, height, table, x, (height > 1) ? y : x);
     } else {
-      radix8(width, height, table, data_in_x ? x : y, x);
+      radix8(width, height, table, y, x);
     }
+    data_in_x = !data_in_x;
     width *= 8;
     table += 7 * height;
   }
   for (int64 i = 0; i < log4n; ++i) {
     height /= 4;
-    if (height > 1) {
-      if (i % 2) {
-        radix4(width, height, table, y, x);
-      } else {
-        radix4(width, height, table, x, y);
-      }
-      data_in_x = !data_in_x;
+    if (data_in_x) {
+      radix4(width, height, table, x, (height > 1) ? y : x);
     } else {
-      radix4(width, height, table, data_in_x ? x : y, x);
+      radix4(width, height, table, y, x);
     }
+    data_in_x = !data_in_x;
     width *= 4;
     table += 3 * height;
   }
   if (log2n == 1) {
     height /= 2;
-    if (n == 2) {
-      radix2(height, table, x, x);
-    } else {
-      radix2(height, table, x, y);
-      data_in_x = !data_in_x;
-    }
+    radix2(height, table, x, (height > 1) ? y : x);
+    data_in_x = (height == 1);
     width *= 2;
   }
 
@@ -101,7 +88,7 @@ void Fft::run(const Direction dir, std::vector<double> &data) const {
   }
 }
 
-void Fft::setTable(int64 r, const int64 height, Complex *table) {
+void Fft::setTable(const int64 r, const int64 height, Complex *table) {
   const double theta = -2.0 * M_PI / (r * height);
   for (int64 i = 0; i < height; ++i) {
     for (int64 j = 1; j < r; ++j) {
@@ -111,7 +98,8 @@ void Fft::setTable(int64 r, const int64 height, Complex *table) {
   }
 }
 
-void Fft::radix2(const int height, Complex *ptr, Complex *x, Complex *y) const {
+void Fft::radix2(const int height, const Complex *ptr, Complex *x,
+                 Complex *y) const {
 #define X(A, B) x[(A)*height + (B)]
 #define Y(A, B) y[(A)*2 + (B)]
   Complex c0 = X(0, 0);
@@ -121,7 +109,7 @@ void Fft::radix2(const int height, Complex *ptr, Complex *x, Complex *y) const {
   Y(0, 1) = d1;
   Y(0, 0) = d0;
   for (int64 j = 1; j < height; ++j) {
-    Complex w = ptr[j - 1];
+    Complex w = ptr[j];
     Complex c0 = X(0, j);
     Complex c1 = X(1, j);
     Complex d0 = c0 + c1;
@@ -133,8 +121,8 @@ void Fft::radix2(const int height, Complex *ptr, Complex *x, Complex *y) const {
 #undef Y
 }
 
-void Fft::radix4(const int width, const int height, Complex *ptr, Complex *x,
-                 Complex *y) const {
+void Fft::radix4(const int width, const int height, const Complex *ptr,
+                 Complex *x, Complex *y) const {
 #define X(A, B, C) x[((A)*height + (B)) * width + (C)]
 #define Y(A, B, C) y[((A)*4 + (B)) * width + (C)]
   for (int64 i = 0; i < width; ++i) {
@@ -174,8 +162,8 @@ void Fft::radix4(const int width, const int height, Complex *ptr, Complex *x,
 #undef Y
 }
 
-void Fft::radix8(const int width, const int height, Complex *ptr, Complex *x,
-                 Complex *y) const {
+void Fft::radix8(const int width, const int height, const Complex *ptr,
+                 Complex *x, Complex *y) const {
 #define X(A, B, C) x[((A)*height + (B)) * width + (C)]
 #define Y(A, B, C) y[((A)*8 + (B)) * width + (C)]
   static constexpr double kC81 = 0.70710678118654752;

@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cstring>
 #include <iostream>
 #include <random>
 #include <vector>
@@ -73,12 +74,16 @@ bool Experiment(const int64 bits, const int64 n, const int64 log2n,
   double max_error = Normalize(bits, n, c);
   auto end = Clock::now();
 
-  // total bits, maximum error, time[ms], Radix, normalize type
-  std::cout << (bits * n) << " " << bits << " " << max_error << " "
-            << std::chrono::duration_cast<Ms>(end - start).count() << " " << use
-            << " " << (norm == NormType::Positive ? "+" : "-") << "\n";
+  if (max_error >= .1)
+    return false;
 
-  return max_error < 0.1;
+  // total bytes, time[ms], maximum error, Radix, normalize type
+  std::cout << (bits * n / 8) << " "
+            << std::chrono::duration_cast<Ms>(end - start).count() << " "
+            << bits << " " << use << " "
+            << (norm == NormType::Positive ? "+" : "-") << " " << max_error
+            << std::endl;
+  return true;
 }
 
 void Test() {
@@ -90,7 +95,7 @@ void Test() {
   };
 
   for (auto data : data_set) {
-    for (int64 log2n = 1; log2n < 13; ++log2n) {
+    for (int64 log2n = 1; log2n < 18; ++log2n) {
       const int64 n = data.base << log2n;
       std::vector<double> a(n, 0);
       std::vector<double> wk(n), table(n); // for work
@@ -102,10 +107,8 @@ void Test() {
       bool pass = true;
       for (int64 i = 0; i < n; ++i) {
         double diff = std::abs(a[i] - (i + 1));
-        if (diff > 1e-3) {
-          // std::cerr << "[" << i << " / " << n << "] " << a[i] << "\n";
+        if (diff > 1e-3)
           pass = false;
-        }
       }
       if (!pass) {
         std::cerr << "Error in " << n << " = "
@@ -122,9 +125,11 @@ void Test() {
   }
 }
 
-int main() {
-  Test();
-  return 0;
+int main(int argc, char *argv[]) {
+  if (argc > 1 && std::strcmp(argv[1], "test") == 0) {
+    Test();
+    return 0;
+  }
 
   struct {
     const int bits;
@@ -134,18 +139,19 @@ int main() {
   } kParameters[] = {
       {15, 1, Fft::Radix::Two, NormType::Positive},
       {16, 1, Fft::Radix::Two, NormType::Positive},
-      // {20, 3, Fft::Radix::Three, NormType::Positive},
-      // {12, 5, Fft::Radix::Five, NormType::Positive},
+      {20, 3, Fft::Radix::Three, NormType::Positive},
+      {12, 5, Fft::Radix::Five, NormType::Positive},
       {15, 1, Fft::Radix::Two, NormType::Negative},
       {16, 1, Fft::Radix::Two, NormType::Negative},
-      // {20, 3, Fft::Radix::Three, NormType::Negative},
-      // {12, 5, Fft::Radix::Five, NormType::Negative},
+      {20, 3, Fft::Radix::Three, NormType::Negative},
+      {12, 5, Fft::Radix::Five, NormType::Negative},
   };
 
+  static constexpr int64 kMaxTotalMemoryMB = 1024;
   for (auto &param : kParameters) {
     for (int64 log2n = 2;; ++log2n) {
       const int64 n = param.base << log2n;
-      if (n > (1LL << 23))
+      if ((n >> 20) * 4 > kMaxTotalMemoryMB)
         break;
       if (!Experiment(param.bits, n, log2n, param.radix, param.norm))
         break;

@@ -24,11 +24,12 @@ protected:
       std::vector<double> &work, std::vector<double> &table);
 
 private:
-  void setTable(int64 r, const int64 height, Complex *table);
-  void radix2(const int height, Complex *ptr, Complex *x, Complex *y) const;
-  void radix4(const int width, const int height, Complex *ptr, Complex *x,
+  void setTable(const int64 r, const int64 height, Complex *table);
+  void radix2(const int height, const Complex *ptr, Complex *x,
               Complex *y) const;
-  void radix8(const int width, const int height, Complex *ptr, Complex *x,
+  void radix4(const int width, const int height, const Complex *ptr, Complex *x,
+              Complex *y) const;
+  void radix8(const int width, const int height, const Complex *ptr, Complex *x,
               Complex *y) const;
   void radix3(const int width, const int height, Complex *x, Complex *y) const;
   void radix5(const int width, const int height, Complex *x, Complex *y) const;
