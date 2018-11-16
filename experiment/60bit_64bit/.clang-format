@@ -1,0 +1,6 @@
+BasedOnStyle: Chromium
+BraceWrapping:
+  AfterNamespace: false
+IndentCaseLabels: false
+SpacesBeforeTrailingComments: 2
+SpaceAfterTemplateKeyword: false
