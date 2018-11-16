@@ -4,13 +4,20 @@
 #include <cmath>
 #include <iostream>
 
-Fft::Fft(const int64 n, const int64 log2n, const Radix radix,
-         std::vector<double> &work, std::vector<double> &table)
-    : n(n), log2n(log2n), log4n(log2n > 1 ? 2 - (log2n + 2) % 3 : 0),
-      log8n(log2n > 1 ? (log2n - log4n * 2) / 3 : 0), radix(radix), work_(work),
+Fft::Fft(const int64 n,
+         const int64 log2n,
+         const Radix radix,
+         std::vector<double>& work,
+         std::vector<double>& table)
+    : n(n),
+      log2n(log2n),
+      log4n(log2n > 1 ? 2 - (log2n + 2) % 3 : 0),
+      log8n(log2n > 1 ? (log2n - log4n * 2) / 3 : 0),
+      radix(radix),
+      work_(work),
       table_(table) {
   int64 height = n;
-  Complex *tbl = reinterpret_cast<Complex *>(table_.data());
+  Complex* tbl = reinterpret_cast<Complex*>(table_.data());
   for (int64 i = 0; i < log8n; ++i) {
     height /= 8;
     setTable(8, height, tbl);
@@ -27,7 +34,7 @@ Fft::Fft(const int64 n, const int64 log2n, const Radix radix,
   }
 }
 
-void Fft::run(const Direction dir, std::vector<double> &data) const {
+void Fft::run(const Direction dir, std::vector<double>& data) const {
   if (dir == Direction::Backward) {
     for (int64 i = 0; i < n; ++i) {
       data[2 * i + 1] = -data[2 * i + 1];
@@ -35,9 +42,9 @@ void Fft::run(const Direction dir, std::vector<double> &data) const {
   }
 
   // <Core>
-  Complex *y = reinterpret_cast<Complex *>(work_.data());
-  Complex *x = reinterpret_cast<Complex *>(data.data());
-  Complex *table = reinterpret_cast<Complex *>(table_.data());
+  Complex* y = reinterpret_cast<Complex*>(work_.data());
+  Complex* x = reinterpret_cast<Complex*>(data.data());
+  Complex* table = reinterpret_cast<Complex*>(table_.data());
   bool data_in_x = true;
   int width = 1, height = n;
   for (int64 i = 0; i < log8n; ++i) {
@@ -88,7 +95,7 @@ void Fft::run(const Direction dir, std::vector<double> &data) const {
   }
 }
 
-void Fft::setTable(const int64 r, const int64 height, Complex *table) {
+void Fft::setTable(const int64 r, const int64 height, Complex* table) {
   const double theta = -2.0 * M_PI / (r * height);
   for (int64 i = 0; i < height; ++i) {
     for (int64 j = 1; j < r; ++j) {
@@ -98,8 +105,10 @@ void Fft::setTable(const int64 r, const int64 height, Complex *table) {
   }
 }
 
-void Fft::radix2(const int height, const Complex *ptr, Complex *x,
-                 Complex *y) const {
+void Fft::radix2(const int height,
+                 const Complex* ptr,
+                 Complex* x,
+                 Complex* y) const {
 #define X(A, B) x[(A)*height + (B)]
 #define Y(A, B) y[(A)*2 + (B)]
   Complex c0 = X(0, 0);
@@ -121,8 +130,11 @@ void Fft::radix2(const int height, const Complex *ptr, Complex *x,
 #undef Y
 }
 
-void Fft::radix4(const int width, const int height, const Complex *ptr,
-                 Complex *x, Complex *y) const {
+void Fft::radix4(const int width,
+                 const int height,
+                 const Complex* ptr,
+                 Complex* x,
+                 Complex* y) const {
 #define X(A, B, C) x[((A)*height + (B)) * width + (C)]
 #define Y(A, B, C) y[((A)*4 + (B)) * width + (C)]
   for (int64 i = 0; i < width; ++i) {
@@ -162,8 +174,11 @@ void Fft::radix4(const int width, const int height, const Complex *ptr,
 #undef Y
 }
 
-void Fft::radix8(const int width, const int height, const Complex *ptr,
-                 Complex *x, Complex *y) const {
+void Fft::radix8(const int width,
+                 const int height,
+                 const Complex* ptr,
+                 Complex* x,
+                 Complex* y) const {
 #define X(A, B, C) x[((A)*height + (B)) * width + (C)]
 #define Y(A, B, C) y[((A)*8 + (B)) * width + (C)]
   static constexpr double kC81 = 0.70710678118654752;
@@ -253,8 +268,10 @@ void Fft::radix8(const int width, const int height, const Complex *ptr,
 #undef Y
 }
 
-void Fft::radix3(const int width, const int height, Complex *x,
-                 Complex *y) const {
+void Fft::radix3(const int width,
+                 const int height,
+                 Complex* x,
+                 Complex* y) const {
   static constexpr double kC31 = 0.86602540378443865;
   static constexpr double kC32 = 0.5;
 #define X(A, C) x[(A)*height * width + (C)]
@@ -275,8 +292,10 @@ void Fft::radix3(const int width, const int height, Complex *x,
 #undef Y
 }
 
-void Fft::radix5(const int width, const int height, Complex *x,
-                 Complex *y) const {
+void Fft::radix5(const int width,
+                 const int height,
+                 Complex* x,
+                 Complex* y) const {
 #define X(A, C) x[(A)*height * width + (C)]
 #define Y(B, C) y[(B)*width + (C)]
   static constexpr double kC51 = 0.95105651629515357;
@@ -311,7 +330,7 @@ void Fft::radix5(const int width, const int height, Complex *x,
 #undef Y
 }
 
-void Rft::run(const Direction dir, std::vector<double> &x) const {
+void Rft::run(const Direction dir, std::vector<double>& x) const {
   if (dir == Direction::Backward) {
     // Convert from real to complex
     double t = 2 * M_PI / n;
@@ -357,7 +376,7 @@ void Rft::run(const Direction dir, std::vector<double> &x) const {
   }
 }
 
-std::ostream &operator<<(std::ostream &ost, const Fft::Radix &r) {
+std::ostream& operator<<(std::ostream& ost, const Fft::Radix& r) {
   switch (r) {
   case Fft::Radix::Two:
     ost << "2";

@@ -11,12 +11,14 @@ using Clock = std::chrono::system_clock;
 using Ms = std::chrono::milliseconds;
 
 enum class NormType {
-  Positive, // [0, B)
-  Negative, // [-B/2, B/2)
+  Positive,  // [0, B)
+  Negative,  // [-B/2, B/2)
 };
 
-void DataGenerate(const int64 bits, const int64 n, const NormType norm,
-                  std::vector<double> &data) {
+void DataGenerate(const int64 bits,
+                  const int64 n,
+                  const NormType norm,
+                  std::vector<double>& data) {
   static std::mt19937_64 mt;
   const uint64 mask = (1ULL << bits) - 1;
   for (int64 i = 0; i < n / 2; ++i) {
@@ -34,7 +36,7 @@ void DataGenerate(const int64 bits, const int64 n, const NormType norm,
   }
 }
 
-double Normalize(const int64 bits, const int64 n, std::vector<double> &c) {
+double Normalize(const int64 bits, const int64 n, std::vector<double>& c) {
   const double kBase = 1ULL << bits;
 
   double max_error = 0;
@@ -49,8 +51,10 @@ double Normalize(const int64 bits, const int64 n, std::vector<double> &c) {
   return max_error;
 }
 
-void Convolution(const Rft &rft, std::vector<double> &a, std::vector<double> &b,
-                 std::vector<double> &c) {
+void Convolution(const Rft& rft,
+                 std::vector<double>& a,
+                 std::vector<double>& b,
+                 std::vector<double>& c) {
   rft.run(Fft::Direction::Forward, a);
   rft.run(Fft::Direction::Forward, b);
   c[0] = a[0] * b[0];
@@ -62,10 +66,13 @@ void Convolution(const Rft &rft, std::vector<double> &a, std::vector<double> &b,
   rft.run(Fft::Direction::Backward, c);
 }
 
-bool Experiment(const int64 bits, const int64 n, const int64 log2n,
-                const Fft::Radix use, const NormType norm) {
-  std::vector<double> a(n, 0), b(n, 0), c(n, 0); // data
-  std::vector<double> wk(n), table(n);           // for work
+bool Experiment(const int64 bits,
+                const int64 n,
+                const int64 log2n,
+                const Fft::Radix use,
+                const NormType norm) {
+  std::vector<double> a(n, 0), b(n, 0), c(n, 0);  // data
+  std::vector<double> wk(n), table(n);            // for work
   DataGenerate(bits, n, norm, a);
   DataGenerate(bits, n, norm, b);
   auto start = Clock::now();
@@ -98,7 +105,7 @@ void Test() {
     for (int64 log2n = 1; log2n < 18; ++log2n) {
       const int64 n = data.base << log2n;
       std::vector<double> a(n, 0);
-      std::vector<double> wk(n), table(n); // for work
+      std::vector<double> wk(n), table(n);  // for work
       for (int64 i = 0; i < n; ++i)
         a[i] = i + 1;
       Rft rft(n, log2n, data.radix, wk, table);
@@ -125,7 +132,7 @@ void Test() {
   }
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   if (argc > 1 && std::strcmp(argv[1], "test") == 0) {
     Test();
     return 0;
@@ -148,10 +155,10 @@ int main(int argc, char *argv[]) {
   };
 
   static constexpr int64 kMaxTotalMemoryMB = 1024;
-  for (auto &param : kParameters) {
+  for (auto& param : kParameters) {
     for (int64 log2n = 2;; ++log2n) {
       const int64 n = param.base << log2n;
-      if ((n >> 20) * 4 > kMaxTotalMemoryMB)
+      if ((n >> 20) * 8 * 2 > kMaxTotalMemoryMB)
         break;
       if (!Experiment(param.bits, n, log2n, param.radix, param.norm))
         break;
