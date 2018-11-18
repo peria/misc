@@ -1,7 +1,7 @@
 #include <chrono>
+#include <cmath>
 #include <cstring>
 #include <iostream>
-#include <random>
 #include <vector>
 
 #include "base.h"
@@ -19,10 +19,10 @@ void DataGenerate(const int64 bits,
                   const int64 n,
                   const NormType norm,
                   std::vector<double>& data) {
-  static std::mt19937_64 mt;
-  const uint64 mask = (1ULL << bits) - 1;
+  const uint64 value = (norm == NormType::Positive) ?
+    ((1ULL << bits) - 1) : ((1ULL << (bits - 1)) - 1);
   for (int64 i = 0; i < n / 2; ++i) {
-    data[i] = static_cast<double>(mt() & mask);
+    data[i] = value;
   }
   if (norm == NormType::Positive)
     return;
@@ -144,12 +144,12 @@ int main(int argc, char* argv[]) {
     const Fft::Radix radix;
     const NormType norm;
   } kParameters[] = {
-      {15, 1, Fft::Radix::Two, NormType::Positive},
       {16, 1, Fft::Radix::Two, NormType::Positive},
+      {15, 1, Fft::Radix::Two, NormType::Positive},
       {20, 3, Fft::Radix::Three, NormType::Positive},
       {12, 5, Fft::Radix::Five, NormType::Positive},
-      {15, 1, Fft::Radix::Two, NormType::Negative},
       {16, 1, Fft::Radix::Two, NormType::Negative},
+      {15, 1, Fft::Radix::Two, NormType::Negative},
       {20, 3, Fft::Radix::Three, NormType::Negative},
       {12, 5, Fft::Radix::Five, NormType::Negative},
   };
@@ -158,11 +158,12 @@ int main(int argc, char* argv[]) {
   for (auto& param : kParameters) {
     for (int64 log2n = 2;; ++log2n) {
       const int64 n = param.base << log2n;
-      if ((n >> 20) * 8 * 2 > kMaxTotalMemoryMB)
+      if ((n >> 20) * 4 > kMaxTotalMemoryMB)
         break;
       if (!Experiment(param.bits, n, log2n, param.radix, param.norm))
         break;
     }
+    std::cout << std::endl << std::endl;
   }
 
   return 0;
