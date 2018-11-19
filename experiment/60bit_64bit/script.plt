@@ -1,10 +1,10 @@
 set terminal png
 set logscale x
 set logscale y
-set key left top
 
 set output 'error.png'
 set ylabel "Rounding error"
+set key right bottom
 plot 'data.txt' index 0 using 1:6 ti "64bit 2+", \
      'data.txt' index 1 using 1:6 ti "60bit 2+", \
      'data.txt' index 2 using 1:6 ti "60bit 3+", \
@@ -16,6 +16,7 @@ plot 'data.txt' index 0 using 1:6 ti "64bit 2+", \
 
 set output 'error2.png'
 set ylabel "Rounding error"
+set key right bottom
 plot 'data.txt' index 0 using 1:6 ti "64bit +", \
      'data.txt' index 1:3 using 1:6 ti "60bit +", \
      'data.txt' index 4 using 1:6 ti "64bit -", \
@@ -24,6 +25,7 @@ plot 'data.txt' index 0 using 1:6 ti "64bit +", \
 set output 'time.png'
 set ylabel "Time [ms]"
 set xrange [1e+4:1e+9]
+set key left top
 plot 'data.txt' index 0 using 1:2 ti "64bit 2+", \
      'data.txt' index 1 using 1:2 ti "60bit 2+", \
      'data.txt' index 2 using 1:2 ti "60bit 3+", \
