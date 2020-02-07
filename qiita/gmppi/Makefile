@@ -12,4 +12,3 @@ itchyny: itchyny.c
 
 peria: peria.cc
 	$(CXX) -o $@ $^ $(CXXFLAGS) -lgmpxx -lgmp
-
