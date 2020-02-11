@@ -10,5 +10,5 @@ all: itchyny peria
 itchyny: itchyny.c
 	$(CC) -o $@ $^ $(CCFLAGS) -lgmp -lm
 
-peria: peria.cc
+peria: chudnovsky.cc computer.cc peria.cc ramanujan.cc
 	$(CXX) -o $@ $^ $(CXXFLAGS) -lgmpxx -lgmp
