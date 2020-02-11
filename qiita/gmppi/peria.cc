@@ -31,17 +31,17 @@ class Timer {
 };
 
 class Computer {
-public:
+ public:
   Computer(int64_t digits) : digits_(digits) {}
   virtual ~Computer() = default;
 
   void compute();
   void output();
 
-protected:
+ protected:
   mpf_class pi_;
 
-private:
+ private:
   void drm(const int64_t n0,
            const int64_t n1,
            mpz_class& x0,
@@ -55,11 +55,11 @@ private:
 };
 
 class Chudnovsky : public Computer {
-public:
+ public:
   Chudnovsky(int64_t digits) : Computer(digits) {}
   ~Chudnovsky() override = default;
 
-private:
+ private:
   void setXYZ(int64_t k, mpz_class& x, mpz_class& y, mpz_class& z) override;
   void postProcess(mpz_class& x, mpz_class& y) override;
   int64_t terms(int64_t digits) const override { return digits / 14; }
@@ -82,10 +82,49 @@ void Chudnovsky::setXYZ(int64_t k, mpz_class& x, mpz_class& y, mpz_class& z) {
   z *= 6 * k + 1;
   z *= 2 * k + 1;
 }
-  
+
 void Chudnovsky::postProcess(mpz_class& x, mpz_class& y) {
   x *= 426880;
   mpf_sqrt_ui(pi_.get_mpf_t(), 10005);
+  pi_ *= x;
+  pi_ /= y;
+}
+
+class Ramanujan : public Computer {
+ public:
+  Ramanujan(int64_t digits) : Computer(digits) {}
+  ~Ramanujan() override = default;
+
+ private:
+  void setXYZ(int64_t k, mpz_class& x, mpz_class& y, mpz_class& z) override;
+  void postProcess(mpz_class& x, mpz_class& y) override;
+  int64_t terms(int64_t digits) const override { return digits / 7.98; }
+};
+
+void Ramanujan::setXYZ(int64_t k, mpz_class& x, mpz_class& y, mpz_class& z) {
+  static constexpr int64_t A = 1103;
+  static constexpr int64_t B = 26390;
+  static constexpr int64_t C = 396;
+
+  if (k == 0) {
+    x = 1;
+  } else {
+    x = k * C / 2;
+    x *= k * C / 2;
+    x *= k * C / 2;
+    x *= k * C;
+  }
+  y = A + B * k;
+  z = 4 * k + 1;
+  z *= 2 * k + 1;
+  z *= 4 * k + 3;
+  z *= k + 1;
+}
+
+void Ramanujan::postProcess(mpz_class& x, mpz_class& y) {
+  x *= 9801;
+  y *= 4;
+  mpf_sqrt_ui(pi_.get_mpf_t(), 2);
   pi_ *= x;
   pi_ /= y;
 }
@@ -139,6 +178,7 @@ int main(int argc, char* argv[]) {
     digits = kDefaultDigits;
 
   std::unique_ptr<Computer> computer(new Chudnovsky(digits));
+  // std::unique_ptr<Computer> computer(new Ramanujan(digits));
   {
     Timer all("All");
     {
