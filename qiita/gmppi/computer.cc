@@ -10,7 +10,8 @@ void Computer::drm(const int64_t n0,
                    const int64_t n1,
                    mpz_class& x0,
                    mpz_class& y0,
-                   mpz_class& z0) {
+                   mpz_class& z0,
+                   bool need_z) {
   if (n0 + 1 == n1) {
     setXYZ(n0, x0, y0, z0);
     return;
@@ -18,8 +19,8 @@ void Computer::drm(const int64_t n0,
 
   mpz_class x1, y1, z1;
   int64_t m = (n0 + n1) / 2;
-  drm(n0, m, x0, y0, z0);
-  drm(m, n1, x1, y1, z1);
+  drm(n0, m, x0, y0, z0, true);
+  drm(m, n1, x1, y1, z1, need_z);
 
   // y0 = x1 * y0 + y1 * z0;
   y0 *= x1;
@@ -27,7 +28,8 @@ void Computer::drm(const int64_t n0,
   y0 += y1;
 
   x0 *= x1;
-  z0 *= z1;
+  if (need_z)
+    z0 *= z1;
 }
 
 void Computer::compute() {
@@ -36,7 +38,7 @@ void Computer::compute() {
 
   const int64_t n = terms(digits_);
   mpz_class x, y, z;
-  drm(0, n, x, y, z);
+  drm(0, n, x, y, z, false);
   postProcess(x, y);
 }
 

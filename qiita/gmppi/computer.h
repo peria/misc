@@ -21,7 +21,8 @@ class Computer {
            const int64_t n1,
            mpz_class& x0,
            mpz_class& y0,
-           mpz_class& z0);
+           mpz_class& z0,
+           bool need_z);
   virtual void setXYZ(int64_t k, mpz_class& x, mpz_class& y, mpz_class& z) = 0;
   virtual void postProcess(mpz_class& x, mpz_class& y) = 0;
   virtual int64_t terms(int64_t digits) const = 0;
