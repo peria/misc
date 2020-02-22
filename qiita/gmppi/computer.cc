@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <thread>
 
 void Computer::drm(const int64_t n0,
                    const int64_t n1,
@@ -17,8 +18,8 @@ void Computer::drm(const int64_t n0,
     return;
   }
 
-  mpz_class x1, y1, z1;
   int64_t m = (n0 + n1) / 2;
+  mpz_class x1, y1, z1;
   drm(n0, m, x0, y0, z0, true);
   drm(m, n1, x1, y1, z1, need_z);
 
@@ -32,13 +33,49 @@ void Computer::drm(const int64_t n0,
     z0 *= z1;
 }
 
-void Computer::compute() {
+void Computer::parallel_drm(const int64_t n0,
+                            const int64_t n1,
+                            mpz_class& x0,
+                            mpz_class& y0,
+                            mpz_class& z0,
+                            bool need_z,
+                            const int number_of_threads) {
+  if (number_of_threads == 1) {
+    drm(n0, n1, x0, y0, z0, need_z);
+    return;
+  }
+
+  int num_new_threads = number_of_threads / 2;
+  int num_rest_threads = number_of_threads - num_new_threads;
+
+  int64_t m = (n0 + n1) / 2;
+  mpz_class x1, y1, z1;
+  {
+    auto clausure = [&] {
+      parallel_drm(m, n1, x1, y1, z1, need_z, num_new_threads);
+    };
+    std::thread th(clausure);
+    parallel_drm(n0, m, x0, y0, z0, true, num_rest_threads);
+    th.join();
+  }
+
+  // y0 = x1 * y0 + y1 * z0;
+  y0 *= x1;
+  y1 *= z0;
+  y0 += y1;
+
+  x0 *= x1;
+  if (need_z)
+    z0 *= z1;
+}
+
+void Computer::compute(int number_of_threads) {
   const int64_t precision = digits_ * std::log2(10) + 10;
   pi_.set_prec(precision);
 
   const int64_t n = terms(digits_);
   mpz_class x, y, z;
-  drm(0, n, x, y, z, false);
+  parallel_drm(0, n, x, y, z, false, number_of_threads);
   postProcess(x, y);
 }
 

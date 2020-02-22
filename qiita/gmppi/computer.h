@@ -9,7 +9,7 @@ class Computer {
   Computer(int64_t digits) : digits_(digits) {}
   virtual ~Computer() = default;
 
-  void compute();
+  void compute(const int number_of_threads = 1);
   void output();
   void check(const char*);
 
@@ -23,6 +23,13 @@ class Computer {
            mpz_class& y0,
            mpz_class& z0,
            bool need_z);
+  void parallel_drm(const int64_t n0,
+                    const int64_t n1,
+                    mpz_class& x0,
+                    mpz_class& y0,
+                    mpz_class& z0,
+                    bool need_z,
+                    const int number_of_threads);
   virtual void setXYZ(int64_t k, mpz_class& x, mpz_class& y, mpz_class& z) = 0;
   virtual void postProcess(mpz_class& x, mpz_class& y) = 0;
   virtual int64_t terms(int64_t digits) const = 0;

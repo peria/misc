@@ -30,13 +30,15 @@ int main(int argc, char* argv[]) {
     digits = kDefaultDigits;
   char* answer_file = (argc > 2) ? argv[2] : nullptr;
 
-  std::unique_ptr<Computer> computer(new Chudnovsky(digits));
-  // std::unique_ptr<Computer> computer(new Ramanujan(digits));
+  std::unique_ptr<Computer> computer;
+  computer = std::make_unique<Chudnovsky>(digits);
+  // computer = std::make_unique<Ramanujan>(digits);
+
   {
     Timer all("All");
     {
       Timer timer("Compute");
-      computer->compute();
+      computer->compute(4);
     }
     computer->output();
   }

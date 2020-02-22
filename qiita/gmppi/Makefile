@@ -11,4 +11,4 @@ itchyny: itchyny.c
 	$(CC) -o $@ $^ $(CCFLAGS) -lgmp -lm
 
 peria: chudnovsky.cc computer.cc peria.cc ramanujan.cc
-	$(CXX) -o $@ $^ $(CXXFLAGS) -lgmpxx -lgmp
+	$(CXX) -o $@ $^ $(CXXFLAGS) -lgmpxx -lgmp -lpthread
