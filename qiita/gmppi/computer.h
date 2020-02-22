@@ -1,19 +1,34 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
 
 #include <gmpxx.h>
 
 class Computer {
  public:
-  Computer(int64_t digits) : digits_(digits) {}
+  static constexpr int kDefaultDigits = 10000;
+  enum class Formula { kChudnovsky, kRamanujan };
+  struct Configuration {
+    int64_t digits = kDefaultDigits;
+    Formula formula = Formula::kChudnovsky;
+    bool outputs = true;
+    std::optional<std::string> compare_file;
+    size_t number_of_threads = 1;
+  };
+
+  static std::unique_ptr<Computer> Create(const Configuration& config);
   virtual ~Computer() = default;
 
-  void compute(const int number_of_threads = 1);
+  void compute();
   void output();
-  void check(const char*);
+  void check();
 
  protected:
+  Computer(const Configuration& config) : config_(config) {}
+
   mpf_class pi_;
 
  private:
@@ -35,12 +50,12 @@ class Computer {
   virtual int64_t terms(int64_t digits) const = 0;
   virtual const char* name() const = 0;
 
-  const int64_t digits_;
+  const Configuration config_;
 };
 
 class Chudnovsky : public Computer {
  public:
-  Chudnovsky(int64_t digits) : Computer(digits) {}
+  Chudnovsky(const Configuration& config) : Computer(config) {}
   ~Chudnovsky() override = default;
 
  private:
@@ -52,7 +67,7 @@ class Chudnovsky : public Computer {
 
 class Ramanujan : public Computer {
  public:
-  Ramanujan(int64_t digits) : Computer(digits) {}
+  Ramanujan(const Configuration& config) : Computer(config) {}
   ~Ramanujan() override = default;
 
  private:

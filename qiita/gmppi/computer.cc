@@ -7,6 +7,16 @@
 #include <iostream>
 #include <thread>
 
+std::unique_ptr<Computer> Computer::Create(const Configuration& config) {
+  switch (config.formula) {
+    case Formula::kChudnovsky:
+      return std::make_unique<Chudnovsky>(config);
+    case Formula::kRamanujan:
+      return std::make_unique<Ramanujan>(config);
+  }
+  return std::make_unique<Chudnovsky>(config);
+}
+
 void Computer::drm(const int64_t n0,
                    const int64_t n1,
                    mpz_class& x0,
@@ -69,17 +79,20 @@ void Computer::parallel_drm(const int64_t n0,
     z0 *= z1;
 }
 
-void Computer::compute(int number_of_threads) {
-  const int64_t precision = digits_ * std::log2(10) + 10;
+void Computer::compute() {
+  const int64_t precision = config_.digits * std::log2(10) + 10;
   pi_.set_prec(precision);
 
-  const int64_t n = terms(digits_);
+  const int64_t n = terms(config_.digits);
   mpz_class x, y, z;
-  parallel_drm(0, n, x, y, z, false, number_of_threads);
+  parallel_drm(0, n, x, y, z, false, config_.number_of_threads);
   postProcess(x, y);
 }
 
 void Computer::output() {
+  if (!config_.outputs)
+    return;
+
   char filename[50];
   std::snprintf(filename, 45, "pi_peria_%s.out", name());
   std::ofstream ofs(filename);
@@ -87,15 +100,15 @@ void Computer::output() {
     std::cerr << "Could not open the file\n";
     return;
   }
-  ofs << std::setprecision(digits_ + 2) << pi_;
+  ofs << std::setprecision(config_.digits + 2) << pi_;
 }
 
-void Computer::check(const char* answer_filename) {
-  if (!answer_filename)
+void Computer::check() {
+  if (!config_.compare_file.has_value())
     return;
 
-  const int64_t precision = digits_ * std::log2(10) + 10;
-  std::ifstream ifs(answer_filename);
+  const int64_t precision = config_.digits * std::log2(10) + 10;
+  std::ifstream ifs(config_.compare_file.value());
   if (!ifs.is_open())
     return;
   mpf_class answer(0, precision);
