@@ -19,39 +19,35 @@ std::unique_ptr<Computer> Computer::Create(const Configuration& config) {
 
 void Computer::drm(const int64_t n0,
                    const int64_t n1,
-                   mpz_class& x0,
-                   mpz_class& y0,
-                   mpz_class& z0,
+                   Parameter& p0,
                    bool need_z) {
   if (n0 + 1 == n1) {
-    setXYZ(n0, x0, y0, z0);
+    setXYZ(n0, p0);
     return;
   }
 
   int64_t m = (n0 + n1) / 2;
-  mpz_class x1, y1, z1;
-  drm(n0, m, x0, y0, z0, true);
-  drm(m, n1, x1, y1, z1, need_z);
+  Parameter p1;
+  drm(n0, m, p0, true);
+  drm(m, n1, p1, need_z);
 
   // y0 = x1 * y0 + y1 * z0;
-  y0 *= x1;
-  y1 *= z0;
-  y0 += y1;
+  p0.y *= p1.x;
+  p1.y *= p0.z;
+  p0.y += p1.y;
 
-  x0 *= x1;
+  p0.x *= p1.x;
   if (need_z)
-    z0 *= z1;
+    p0.z *= p1.z;
 }
 
 void Computer::parallel_drm(const int64_t n0,
                             const int64_t n1,
-                            mpz_class& x0,
-                            mpz_class& y0,
-                            mpz_class& z0,
+                            Parameter& p0,
                             bool need_z,
                             const int number_of_threads) {
   if (number_of_threads == 1) {
-    drm(n0, n1, x0, y0, z0, need_z);
+    drm(n0, n1, p0, need_z);
     return;
   }
 
@@ -59,24 +55,22 @@ void Computer::parallel_drm(const int64_t n0,
   int num_rest_threads = number_of_threads - num_new_threads;
 
   int64_t m = (n0 + n1) / 2;
-  mpz_class x1, y1, z1;
+  Parameter p1;
   {
-    auto clausure = [&] {
-      parallel_drm(m, n1, x1, y1, z1, need_z, num_new_threads);
-    };
+    auto clausure = [&] { parallel_drm(m, n1, p1, need_z, num_new_threads); };
     std::thread th(clausure);
-    parallel_drm(n0, m, x0, y0, z0, true, num_rest_threads);
+    parallel_drm(n0, m, p0, true, num_rest_threads);
     th.join();
   }
 
   // y0 = x1 * y0 + y1 * z0;
-  y0 *= x1;
-  y1 *= z0;
-  y0 += y1;
+  p0.y *= p1.x;
+  p1.y *= p0.z;
+  p0.y += p1.y;
 
-  x0 *= x1;
+  p0.x *= p1.x;
   if (need_z)
-    z0 *= z1;
+    p0.z *= p1.z;
 }
 
 void Computer::compute() {
@@ -84,9 +78,9 @@ void Computer::compute() {
   pi_.set_prec(precision);
 
   const int64_t n = terms(config_.digits);
-  mpz_class x, y, z;
-  parallel_drm(0, n, x, y, z, false, config_.number_of_threads);
-  postProcess(x, y);
+  Parameter param;
+  parallel_drm(0, n, param, false, config_.number_of_threads);
+  postProcess(param);
 }
 
 void Computer::output() {
