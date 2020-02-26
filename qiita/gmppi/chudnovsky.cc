@@ -1,5 +1,9 @@
 #include "computer.h"
 
+Chudnovsky::Chudnovsky(const Configuration& config)
+    : Computer(config, std::max<int32_t>(10005, terms(config.digits) * 6 + 5)) {
+}
+
 void Chudnovsky::setXYZ(int64_t k, Parameter& param) {
   static constexpr int64_t A = 13591409;
   static constexpr int64_t B = 545140134;

@@ -1,5 +1,8 @@
 #include "computer.h"
 
+Ramanujan::Ramanujan(const Configuration& config)
+    : Computer(config, std::max<int32_t>(99, terms() * 4 + 3)) {}
+
 void Ramanujan::setXYZ(int64_t k, Parameter& param) {
   static constexpr int64_t A = 1103;
   static constexpr int64_t B = 26390;
