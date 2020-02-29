@@ -28,18 +28,42 @@ class Computer {
   void check();
 
  protected:
-  struct Parameter {
-    mpz_class x;
-    mpz_class y;
-    mpz_class z;
-  };
   struct PrimeFactor {
     int64_t prime = 0;
     int64_t exp = 0;
   };
-  class Sieve {
+  struct Factorized {
+    void add(const PrimeFactor& f) { factors.push_back(f); }
+    Factorized& operator*=(const Factorized& other);
+    mpz_class toMpz() const;
+    void shrink();
+    std::vector<PrimeFactor> factors;
+
+   private:
+    mpz_class toMpz(int64_t a, int64_t b) const;
+  };
+  struct Parameter {
+    mpz_class x;
+    mpz_class y;
+    mpz_class z;
+    Factorized factorized_x;
+    Factorized factorized_z;
+  };
+
+  explicit Computer(const Configuration& config, int64_t max_n)
+      : config_(config), factorizer_(max_n) {}
+  Factorized factorize(int64_t n, int64_t e = 1) {
+    return factorizer_.factorize(n, e);
+  }
+
+  mpf_class pi_;
+  const Configuration config_;
+
+ private:
+  class Factorizer {
    public:
-    explicit Sieve(const int64_t n);
+    explicit Factorizer(const int64_t n);
+    Factorized factorize(int64_t n, int64_t exp);
 
    private:
     struct Element {
@@ -49,25 +73,20 @@ class Computer {
     std::vector<Element> elements_;
   };
 
-  explicit Computer(const Configuration& config, int64_t sieve_size)
-      : config_(config), sieve_(sieve_size) {}
-
-  mpf_class pi_;
-  const Configuration config_;
-
- private:
   void drm(const int64_t n0, const int64_t n1, Parameter& param, bool need_z);
-  void parallel_drm(const int64_t n0,
-                    const int64_t n1,
-                    Parameter& param,
-                    bool need_z,
-                    const int number_of_threads);
+  void parallelDrm(const int64_t n0,
+                   const int64_t n1,
+                   Parameter& param,
+                   bool need_z,
+                   const int number_of_threads);
+  void reduceGcd(Parameter& p0, Parameter& p1);
+  Factorized splitGcd(Factorized& a, Factorized& b);
   virtual void setXYZ(int64_t k, Parameter& param) = 0;
   virtual void postProcess(Parameter& param) = 0;
   virtual int64_t terms() const = 0;
   virtual const char* name() const = 0;
 
-  Sieve sieve_;
+  Factorizer factorizer_;
 };
 
 class Chudnovsky : public Computer {

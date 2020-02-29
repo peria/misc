@@ -11,6 +11,8 @@ void Ramanujan::setXYZ(int64_t k, Parameter& param) {
   mpz_class& x = param.x;
   mpz_class& y = param.y;
   mpz_class& z = param.z;
+  Factorized& fx = param.factorized_x;
+  Factorized& fz = param.factorized_z;
 
   if (k == 0) {
     x = 1;
@@ -19,12 +21,20 @@ void Ramanujan::setXYZ(int64_t k, Parameter& param) {
     x *= k * C / 2;
     x *= k * C / 2;
     x *= k * C;
+
+    fx = factorize(k, 4);
+    fx *= factorize(C / 2, 4);
   }
   y = A + B * k;
   z = 4 * k + 1;
   z *= 2 * k + 1;
   z *= 4 * k + 3;
   z *= k + 1;
+
+  fz = factorize(4 * k + 1);
+  fz *= factorize(2 * k + 1);
+  fz *= factorize(4 * k + 3);
+  fz *= factorize(k + 1);
 }
 
 void Ramanujan::postProcess(Parameter& param) {
