@@ -4,21 +4,75 @@
 
 using uint128_t = __uint128_t;
 
+#ifdef MONTGOMERY
+
+// refer code of : https://min-25.hatenablog.com/entry/2017/08/20/171214
+class Montgomery {
+ public:
+  explicit Montgomery(uint64_t n) : n_(init(n)) {}
+
+  static void setUp(uint64_t m) {
+    mod = m;
+    inv = m;
+    for (int i = 0; i < 5; ++i)
+      inv *= 2 - inv * m;
+    r2 = -uint128_t(m) % m;
+  }
+
+  Montgomery& operator *= (Montgomery rhs) {
+    n_ = reduce(uint128_t(n_) * rhs.n_);
+    return *this; 
+  }
+  operator uint64_t() const { return reduce(n_); }
+
+ private:
+  static uint64_t init(uint64_t w) {
+    return reduce(uint128_t(w) * r2);
+  }
+  static uint64_t reduce(uint128_t x) {
+    uint64_t y = uint64_t(x >> 64) - uint64_t((uint128_t(uint64_t(x) * inv) * mod) >> 64);
+    return (y & (1ULL << 63)) ? (y + mod) : y;
+  }
+  static uint64_t mod, inv, r2;
+
+  uint64_t n_;
+};
+
+uint64_t Montgomery::mod, Montgomery::inv, Montgomery::r2;
+
+uint64_t PowMod(uint64_t a, uint64_t e, const uint64_t m) {
+  Montgomery::setUp(m);
+  
+  Montgomery a2(a);
+  Montgomery r(1);
+  for (; e; e >>= 1) {
+    if (e & 1) {
+      r *= a2;
+    }
+    a2 *= a2;
+  }
+  return r;
+}
+
+#else
+
 uint64_t PowMod(uint64_t a, uint64_t e, const uint64_t m) {
   uint128_t a2 = a;
   uint64_t r = 1;
   for (; e; e >>= 1) {
     if (e & 1) {
-      r = a * a2 % m;
+      r = r * a2 % m;
     }
     a2 = a2 * a2 % m;
   }
   return r;
 }
 
+#endif  // defined(MONTGOMERY)
+
 void DivMod1(const uint64_t a, const uint64_t b, const int64_t size, uint64_t* dst) {
   uint128_t t = a;
-  for (int64_t i = 0; i < size; ++i) {
+  for (int64_t i = size - 1; i >= 0; --i) {
     t <<= 64;
     dst[i] = t / b;
     t %= b;
@@ -27,7 +81,7 @@ void DivMod1(const uint64_t a, const uint64_t b, const int64_t size, uint64_t* d
 
 void Div(const uint64_t* a, const uint64_t b, const int64_t size, uint64_t* dst) {
   uint128_t t;
-  for (int64_t i = 0; i < size; ++i) {
+  for (int64_t i = size - 1; i >= 0; --i) {
     t = (t << 64) + a[i];
     dst[i] = t / b;
     t %= b;
@@ -36,13 +90,12 @@ void Div(const uint64_t* a, const uint64_t b, const int64_t size, uint64_t* dst)
 
 void Add(const uint64_t* a, const uint64_t* b, const int64_t size, uint64_t* dst) {
   uint64_t carry = 0;
-  for (int64_t i = size - 1; i >= 0; --i) {
+  for (int64_t i = 0; i < size; ++i) {
     uint64_t x = a[i];
     uint64_t y = b[i];
     uint64_t z = x + carry;
-    if (z < x)
-      carry = 1;
-    uint64_t w = y + z;
+    carry = (z < x) ? 1 : 0;
+    uint64_t w = z + y;
     if (w < z)
       carry = 1;
     dst[i] = w;
@@ -51,12 +104,11 @@ void Add(const uint64_t* a, const uint64_t* b, const int64_t size, uint64_t* dst
 
 void Subtract(const uint64_t* a, const uint64_t* b, const int64_t size, uint64_t* dst) {
   uint64_t carry = 0;
-  for (int64_t i = size - 1; i >= 0; --i) {
+  for (int64_t i = 0; i < size; ++i) {
     uint64_t x = a[i];
     uint64_t y = b[i];
     uint64_t z = x - carry;
-    if (z > x)
-      carry = 1;
+    carry = (z > x) ? 1 : 0;
     uint64_t w = z - y;
     if (w > z)
       carry = 1;
@@ -64,9 +116,16 @@ void Subtract(const uint64_t* a, const uint64_t* b, const int64_t size, uint64_t
   }
 }
 
+void Dump(const uint64_t* a, const int64_t size) {
+  for (int64_t i = size - 1; i >= 0; --i) {
+    std::printf("%016lx", a[i]);
+  }
+  std::printf("\n");
+}
+
 int main() {
   // XxxIndex are 1-origin indecies.
-  static constexpr int64_t kHexIndex = 1;
+  static constexpr int64_t kHexIndex = 10000000;
   static constexpr int64_t kBitIndex = kHexIndex * 4 - 3;
   static constexpr int64_t kComputeSize = 4;
 
@@ -96,7 +155,7 @@ int main() {
   for (auto&& term : kTerms) {
     uint64_t term_sum[2][kComputeSize] {}; // [0]: k is even, [1]: k is odd.
     const int64_t bit_shift = kBitIndex + term.b - 1;
-    const int64_t integer_n = (bit_shift >= 0) ? (bit_shift / term.a) : -1LL;
+    const int64_t integer_n = (bit_shift >= 0) ? (bit_shift / term.a) : 0LL;
     const int64_t zero_n = (bit_shift + 64 * kComputeSize) / term.a;
 
     for (int64_t i = 0; i < integer_n; ++i) {
@@ -111,20 +170,31 @@ int main() {
     for (int64_t i = integer_n; i < zero_n; ++i) {
       int64_t shift = bit_shift + 64 * kComputeSize - i * term.a;
       const uint64_t mod = term.c * i + term.d;
-      uint64_t operand[kComputeSize] {};
+      uint64_t operand[kComputeSize + 1] {};
       operand[shift / 64] = 1ULL << (shift % 64);
-      Div(operand, mod, kComputeSize, operand);
+      Div(operand, mod, kComputeSize + 1, operand);
       Add(term_sum[i & 1], operand, kComputeSize, term_sum[i & 1]);
     }
+
     if (term.f == Term::Flip::kFlip) {
       Subtract(term_sum[0], term_sum[1], kComputeSize, term_sum[0]);
     } else {
       Add(term_sum[0], term_sum[1], kComputeSize, term_sum[0]);
     }
-    Add(part_pi, term_sum[0], kComputeSize, part_pi);
+
+    if (term.s == Term::Sign::kPositive) {
+      Add(part_pi, term_sum[0], kComputeSize, part_pi);
+    } else {
+      Subtract(part_pi, term_sum[0], kComputeSize, part_pi);
+    }
+
+    std::printf("Term[1/(%2ldk%+ld) : ", term.c, term.d);
+    Dump(part_pi, kComputeSize);
   }
 
-  for (int64_t i = 0; i < kComputeSize; ++i) {
+  std::cout << (kComputeSize * 16) << " hex digits of pi from "
+            << kHexIndex << " th hex digit are\n";
+  for (int64_t i = kComputeSize - 1; i >= 0; --i) {
     std::printf("%016lX", part_pi[i]);
   }
   std::puts("");
