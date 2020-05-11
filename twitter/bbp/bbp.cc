@@ -1,6 +1,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <iostream>
 #include <memory>
 
@@ -22,6 +23,25 @@ struct Term {
   int64_t d;
   Sign s;
   Flip f;
+};
+
+struct Output {
+  Output(const int64_t size, const int64_t num_threads) {
+    part_pi = new uint64_t[size];
+    term_sums = new uint64_t[2 * size];
+    // cudaMalloc(&dump, sizeof(uint64_t) * size * num_threads);
+    thread_sums = new uint64_t[num_threads * size];
+  }
+  ~Output() {
+    delete[](part_pi);
+    delete[](term_sums);
+    // cudaFree(&dump);
+    delete[](thread_sums);
+  }
+
+  uint64_t* part_pi = nullptr;
+  uint64_t* term_sums = nullptr;
+  uint64_t* thread_sums = nullptr;
 };
 
 inline uint64_t umul64hi(uint64_t x, uint64_t y) {
@@ -322,35 +342,71 @@ void ComputeIntegralKernel(const int64_t thread_id,
 
 void ComputeIntegralPart(const int64_t n,
                          const int64_t bit_shift,
-                         const int64_t a,
-                         const int64_t c,
-                         const int64_t d,
-                         uint64_t term_sum[2][kComputeSize]) {
+                         const Term& term,
+                         Output& output) {
   const int64_t n_in_parallel = n / kNumThreads * kNumThreads;
 
-  std::unique_ptr<uint64_t[]> thread_sums(
-      new uint64_t[kComputeSize * kNumThreads]);
   for (int64_t thread_id = 0; thread_id < kNumThreads; ++thread_id) {
-    uint64_t* thread_sum = thread_sums.get() + thread_id * kComputeSize;
-    ComputeIntegralKernel(thread_id, n_in_parallel, bit_shift, a, c, d,
-                          thread_sum);
+    uint64_t* thread_sum = output.thread_sums + thread_id * kComputeSize;
+    ComputeIntegralKernel(thread_id, n_in_parallel, bit_shift, term.a, term.c,
+                          term.d, thread_sum);
   }
 
+  uint64_t* term_sums[] = {output.term_sums, output.term_sums + kComputeSize};
   // single thread in CPU
   for (int64_t i = n_in_parallel; i < n; ++i) {
-    const int64_t mod = c * i + d;
-    const int64_t pow2 = bit_shift - a * i;
+    const int64_t mod = term.c * i + term.d;
+    const int64_t pow2 = bit_shift - term.a * i;
     uint64_t operand[kComputeSize];
     const uint64_t rem = PowMod(2, pow2, mod);
     DivMod1(rem, mod, kComputeSize, operand);
-    Add(term_sum[i & 1], operand, kComputeSize, term_sum[i & 1]);
+    Add(term_sums[i & 1], operand, kComputeSize, term_sums[i & 1]);
   }
 
-  // sync here
+  // TODO: Sync here
 
+  std::unique_ptr<uint64_t[]> thread_sums(
+      new uint64_t[kComputeSize * kNumThreads]);
+  // Copy GPU memory to main memory.
+  std::memcpy(thread_sums.get(), output.thread_sums,
+              sizeof(uint64_t) * kComputeSize * kNumThreads);
   for (int64_t i = 0; i < kNumThreads; ++i) {
     uint64_t* thread_sum = thread_sums.get() + i * kComputeSize;
-    Add(term_sum[i & 1], thread_sum, kComputeSize, term_sum[i & 1]);
+    Add(term_sums[i & 1], thread_sum, kComputeSize, term_sums[i & 1]);
+  }
+}
+
+void ComputeTerm(const Term& term, const int64_t hex_index, Output& output) {
+  const int64_t bit_index = hex_index * 4 - 3;
+  const int64_t bit_shift = bit_index + term.b - 1;
+  const int64_t integer_n = (bit_shift >= 0) ? (bit_shift / term.a) : 0LL;
+  const int64_t zero_n = (bit_shift + 64 * kComputeSize) / term.a;
+
+  for (int64_t i = 0; i < 2 * kComputeSize; ++i)
+    output.term_sums[i] = 0;
+
+  ComputeIntegralPart(integer_n, bit_shift, term, output);
+
+  uint64_t* term_sums[] = {output.term_sums, output.term_sums + kComputeSize};
+  for (int64_t i = integer_n; i < zero_n; ++i) {
+    int64_t shift = bit_shift + 64 * kComputeSize - i * term.a;
+    const uint64_t mod = term.c * i + term.d;
+    uint64_t operand[kComputeSize + 1]{};
+    operand[shift / 64] = 1ULL << (shift % 64);
+    Div(operand, mod, kComputeSize + 1, operand);
+    Add(term_sums[i & 1], operand, kComputeSize, term_sums[i & 1]);
+  }
+
+  if (term.f == Term::Flip::kFlip) {
+    Subtract(term_sums[0], term_sums[1], kComputeSize, term_sums[0]);
+  } else {
+    Add(term_sums[0], term_sums[1], kComputeSize, term_sums[0]);
+  }
+
+  if (term.s == Term::Sign::kPositive) {
+    Add(output.part_pi, term_sums[0], kComputeSize, output.part_pi);
+  } else {
+    Subtract(output.part_pi, term_sums[0], kComputeSize, output.part_pi);
   }
 }
 
@@ -361,10 +417,18 @@ void Dump(const uint64_t* a, const int64_t size) {
   std::printf("\n");
 }
 
+double DurationInSec(const Clock::time_point& a, const Clock::time_point& b) {
+  if (a > b)
+    return DurationInSec(b, a);
+
+  using MSec = std::chrono::milliseconds;
+  auto diff = b - a;
+  return std::chrono::duration_cast<MSec>(diff).count() * 1e-3;
+}
+
 int main() {
-  // XxxIndex are 1-origin indecies.
+  // HexIndex is 1-origin index.
   static constexpr int64_t kHexIndex = 10000000;
-  static constexpr int64_t kBitIndex = kHexIndex * 4 - 3;
 
   const Term kTerms[] = {
       {10, -1, 4, 1, Term::Sign::kNegative, Term::Flip::kFlip},
@@ -376,57 +440,23 @@ int main() {
       {10, -6, 10, 9, Term::Sign::kPositive, Term::Flip::kFlip},
   };
 
-  uint64_t part_pi[kComputeSize]{};
+  Output output(kComputeSize, kNumThreads);
   auto start_time = Clock::now();
   for (auto&& term : kTerms) {
     auto term_start_time = Clock::now();
-
-    uint64_t term_sum[2][kComputeSize]{};  // [0]: k is even, [1]: k is odd.
-    const int64_t bit_shift = kBitIndex + term.b - 1;
-    const int64_t integer_n = (bit_shift >= 0) ? (bit_shift / term.a) : 0LL;
-    const int64_t zero_n = (bit_shift + 64 * kComputeSize) / term.a;
-
-    ComputeIntegralPart(integer_n, bit_shift, term.a, term.c, term.d, term_sum);
-
-    for (int64_t i = integer_n; i < zero_n; ++i) {
-      int64_t shift = bit_shift + 64 * kComputeSize - i * term.a;
-      const uint64_t mod = term.c * i + term.d;
-      uint64_t operand[kComputeSize + 1]{};
-      operand[shift / 64] = 1ULL << (shift % 64);
-      Div(operand, mod, kComputeSize + 1, operand);
-      Add(term_sum[i & 1], operand, kComputeSize, term_sum[i & 1]);
-    }
-
-    if (term.f == Term::Flip::kFlip) {
-      Subtract(term_sum[0], term_sum[1], kComputeSize, term_sum[0]);
-    } else {
-      Add(term_sum[0], term_sum[1], kComputeSize, term_sum[0]);
-    }
-
-    if (term.s == Term::Sign::kPositive) {
-      Add(part_pi, term_sum[0], kComputeSize, part_pi);
-    } else {
-      Subtract(part_pi, term_sum[0], kComputeSize, part_pi);
-    }
+    ComputeTerm(term, kHexIndex, output);
     auto term_end_time = Clock::now();
-
-    double term_time = std::chrono::duration_cast<std::chrono::milliseconds>(
-                           term_end_time - term_start_time)
-                           .count() *
-                       1e-3;
+    double term_time = DurationInSec(term_end_time, term_start_time);
     std::printf("%.3fsec Term[1/(%2ldk%+ld)] : ", term_time, term.c, term.d);
-    Dump(part_pi, kComputeSize);
+    Dump(output.part_pi, kComputeSize);
   }
   auto end_time = Clock::now();
 
-  double total_time = std::chrono::duration_cast<std::chrono::milliseconds>(
-                          end_time - start_time)
-                          .count() *
-                      1e-3;
+  double total_time = DurationInSec(end_time, start_time);
   std::cout << (kComputeSize * 16) << " hex digits of pi from " << kHexIndex
             << " th hex digit are\n";
   for (int64_t i = kComputeSize - 1; i >= 0; --i) {
-    std::printf("%016lX", part_pi[i]);
+    std::printf("%016lX", output.part_pi[i]);
   }
   std::printf("\nCompute Time: %.3f sec.\n", total_time);
 
