@@ -5,11 +5,16 @@
 #include <iostream>
 #include <memory>
 
+#include <cuda.h>
+#include <cuda_runtime.h>
+
 using uint128_t = __uint128_t;
 using Clock = std::chrono::steady_clock;
 
 constexpr int64_t kComputeSize = 4;
-constexpr int64_t kNumThreads = 4;
+constexpr int64_t kNumBlocks = 32;
+constexpr int64_t kNumGrids = 32;
+constexpr int64_t kNumThreads = kNumBlocks * kNumGrids;
 static_assert(kNumThreads % 2 == 0, "Number of threads must be even");
 
 // A = s * \sum_k 2^(-a*k+b)/(c*k+d)         (if f == kNoFlip)
@@ -29,14 +34,12 @@ struct Output {
   Output(const int64_t size, const int64_t num_threads) {
     part_pi = new uint64_t[size];
     term_sums = new uint64_t[2 * size];
-    // cudaMalloc(&dump, sizeof(uint64_t) * size * num_threads);
-    thread_sums = new uint64_t[num_threads * size];
+    cudaMalloc(&thread_sums, sizeof(uint64_t) * size * num_threads);
   }
   ~Output() {
     delete[](part_pi);
     delete[](term_sums);
-    // cudaFree(&dump);
-    delete[](thread_sums);
+    cudaFree(&thread_sums);
   }
 
   uint64_t* part_pi = nullptr;
@@ -44,8 +47,10 @@ struct Output {
   uint64_t* thread_sums = nullptr;
 };
 
-inline uint64_t umul64hi(uint64_t x, uint64_t y) {
-#if 1
+__device__ __host__ inline uint64_t umul64hi(uint64_t x, uint64_t y) {
+#ifdef __CUDA_ARCH__
+  return __umul64hi(x, y);
+#elif 1
   // Asm
   uint64_t z;
   asm("mul %2" : "=d"(z) : "a"(x), "r"(y));
@@ -67,7 +72,7 @@ inline uint64_t umul64hi(uint64_t x, uint64_t y) {
 }
 
 // Make 2^63 <= |d| < 2^64
-int64_t NormalizeDivider(uint64_t& d) {
+__device__ __host__ int64_t NormalizeDivider(uint64_t& d) {
   int64_t shift = 0;
   if ((d & (-1ULL << 32)) == 0) {
     shift += 32;
@@ -96,11 +101,11 @@ int64_t NormalizeDivider(uint64_t& d) {
   return shift;
 }
 
-uint64_t Div2ByNormalized1(uint64_t n0,
-                           uint64_t n1,
-                           const int64_t shift,
-                           const uint64_t d,
-                           uint64_t& rem) {
+__device__ __host__ uint64_t Div2ByNormalized1(uint64_t n0,
+                                               uint64_t n1,
+                                               const int64_t shift,
+                                               const uint64_t d,
+                                               uint64_t& rem) {
   // Nomalize numerator ==> remain
   uint64_t r0 = n0 << shift;
   uint64_t r1 = (n1 << shift) | (n0 >> (64 - shift));
@@ -147,7 +152,7 @@ uint64_t Div2ByNormalized1(uint64_t n0,
 
 // Computes a^e mod m using Montgomery Reduction.
 // Reference; https://min-25.hatenablog.com/entry/2017/08/20/171214
-uint64_t PowMod(uint64_t a, uint64_t e, const uint64_t m) {
+__device__ __host__ uint64_t PowMod(uint64_t a, uint64_t e, const uint64_t m) {
   uint64_t inv = m;
   for (int i = 0; i < 5; ++i)
     inv *= 2 - inv * m;
@@ -171,10 +176,10 @@ uint64_t PowMod(uint64_t a, uint64_t e, const uint64_t m) {
   return (r & (1ULL << 63)) ? (r + m) : r;
 }
 
-void DivMod1(const uint64_t a,
-             const uint64_t b,
-             const int64_t size,
-             uint64_t* dst) {
+__device__ __host__ void DivMod1(const uint64_t a,
+                                 const uint64_t b,
+                                 const int64_t size,
+                                 uint64_t* dst) {
 #if 0
   // Uint128
   uint128_t t = a;
@@ -228,11 +233,12 @@ void DivMod1(const uint64_t a,
 #endif
 }
 
-void Div(const uint64_t* a,
-         const uint64_t b,
-         const int64_t size,
-         uint64_t* dst) {
+__device__ __host__ void Div(const uint64_t* a,
+                             const uint64_t b,
+                             const int64_t size,
+                             uint64_t* dst) {
 #if 0
+  // Uint128
   uint128_t t;
   for (int64_t i = size - 1; i >= 0; --i) {
     t = (t << 64) + a[i];
@@ -286,6 +292,7 @@ void Div(const uint64_t* a,
 #endif
 }
 
+__device__ __host__
 void Add(const uint64_t* a,
          const uint64_t* b,
          const int64_t size,
@@ -303,6 +310,7 @@ void Add(const uint64_t* a,
   }
 }
 
+__device__ __host__
 void Subtract(const uint64_t* a,
               const uint64_t* b,
               const int64_t size,
@@ -320,13 +328,14 @@ void Subtract(const uint64_t* a,
   }
 }
 
-void ComputeIntegralKernel(const int64_t thread_id,
-                           const int64_t n,
+__global__
+void ComputeIntegralKernel(const int64_t n,
                            const int64_t bit_shift,
                            const int64_t a,
                            const int64_t c,
                            const int64_t d,
                            uint64_t* thread_sum) {
+  const int64_t thread_id = blockIdx.x * blockDim.x + threadIdx.x;
   for (int64_t i = 0; i < kComputeSize; ++i)
     thread_sum[i] = 0;
 
@@ -348,8 +357,8 @@ void ComputeIntegralPart(const int64_t n,
 
   for (int64_t thread_id = 0; thread_id < kNumThreads; ++thread_id) {
     uint64_t* thread_sum = output.thread_sums + thread_id * kComputeSize;
-    ComputeIntegralKernel(thread_id, n_in_parallel, bit_shift, term.a, term.c,
-                          term.d, thread_sum);
+    ComputeIntegralKernel<<<kNumGrids, kNumBlocks>>>(
+        n_in_parallel, bit_shift, term.a, term.c, term.d, thread_sum);
   }
 
   uint64_t* term_sums[] = {output.term_sums, output.term_sums + kComputeSize};
@@ -363,13 +372,12 @@ void ComputeIntegralPart(const int64_t n,
     Add(term_sums[i & 1], operand, kComputeSize, term_sums[i & 1]);
   }
 
-  // TODO: Sync here
-
   std::unique_ptr<uint64_t[]> thread_sums(
       new uint64_t[kComputeSize * kNumThreads]);
   // Copy GPU memory to main memory.
-  std::memcpy(thread_sums.get(), output.thread_sums,
-              sizeof(uint64_t) * kComputeSize * kNumThreads);
+  cudaMemcpy(thread_sums.get(), output.thread_sums,
+             sizeof(uint64_t) * kComputeSize * kNumThreads,
+             cudaMemcpyDeviceToHost);
   for (int64_t i = 0; i < kNumThreads; ++i) {
     uint64_t* thread_sum = thread_sums.get() + i * kComputeSize;
     Add(term_sums[i & 1], thread_sum, kComputeSize, term_sums[i & 1]);
