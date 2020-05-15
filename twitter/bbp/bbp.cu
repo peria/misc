@@ -45,6 +45,8 @@ struct Term {
 struct Output {
   Output(const int64_t size, const int64_t num_threads) {
     part_pi = new uint64_t[size];
+    for (int64_t i = 0; i < size; ++i)
+      part_pi[i] = 0;
     term_sums = new uint64_t[2 * size];
 #ifdef __NVCC__
     cudaMalloc(&thread_sums, sizeof(uint64_t) * size * num_threads);
@@ -129,7 +131,6 @@ uint64_t Div2ByNormalized1(uint64_t n0,
                            const int64_t shift,
                            const uint64_t d,
                            uint64_t& rem) {
-  // Nomalize numerator ==> remain
   uint64_t r0 = n0 << shift;
   uint64_t r1 = (n1 << shift) | (n0 >> (64 - shift));
 
@@ -153,7 +154,7 @@ uint64_t Div2ByNormalized1(uint64_t n0,
   uint64_t w0 = p0 << 32;
   uint64_t w1 = (p1 << 32) | (p0 >> 32);
   if (w0 > r0)
-    --w1;
+    --r1;
   r0 -= w0;
   r1 -= w1;
 
@@ -183,7 +184,12 @@ uint64_t PowMod(uint64_t a, uint64_t e, const uint64_t m) {
   uint64_t mm = m;
   int64_t shift = NormalizeDivider(mm);
   uint64_t r2;
+#if 0
+  // Uint128
+  r2 = -uint128_t(m) % m;
+#else
   Div2ByNormalized1(-m, (~0ULL) % m, shift, mm, r2);
+#endif
 
   uint64_t r = -umul64hi(r2 * inv, m);
   r = (r & (1ULL << 63)) ? (r + m) : r;
@@ -253,7 +259,7 @@ void DivMod1(const uint64_t a,
       --qt;
     }
     r0 -= p0;
-    dst[i] = q | qt;
+    dst[i] = q + qt;
   }
 #endif
 }
@@ -370,7 +376,7 @@ void ComputeIntegralKernel(
 #ifdef __NVCC__
   const int64_t thread_id = blockIdx.x * blockDim.x + threadIdx.x;
 #endif
-  uint64_t* thread_sum = thread_sums + thread_id;
+  uint64_t* thread_sum = thread_sums + thread_id * kComputeSize;
   for (int64_t i = 0; i < kComputeSize; ++i)
     thread_sum[i] = 0;
 
@@ -482,7 +488,7 @@ double DurationInSec(const Clock::time_point& a, const Clock::time_point& b) {
 
 int main() {
   // HexIndex is 1-origin index.
-  static constexpr int64_t kHexIndex = 10;
+  static constexpr int64_t kHexIndex = 10000000;
 
   const Term kTerms[] = {
       {10, -1, 4, 1, Term::Sign::kNegative, Term::Flip::kFlip},
