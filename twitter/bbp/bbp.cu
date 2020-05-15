@@ -223,7 +223,7 @@ void DivMod1(const uint64_t a,
     uint64_t r1 = r0;
     r0 = 0;
     uint64_t qt = r1 / b1;
-    uint64_t p0 = b * qt;
+    uint64_t p0 = nb * qt;
     uint64_t p1 = umul64hi(nb, qt);
     {
       const uint64_t u0 = (r1 << 32) | (r0 >> 32);
@@ -239,7 +239,7 @@ void DivMod1(const uint64_t a,
     uint64_t w0 = p0 << 32;
     uint64_t w1 = (p1 << 32) | (p0 >> 32);
     if (w0 > r0)
-      --w1;
+      --r1;
     r0 -= w0;
     r1 -= w1;
 
@@ -393,7 +393,7 @@ void ComputeIntegralPart(const int64_t n,
 #ifdef __NVCC__
   ComputeIntegralKernel<<<kNumGrids, kNumBlocks>>>(
       n_in_parallel,
-      bit_shift, term.a, term.c, term.d, output.thread_thread_sums);
+      bit_shift, term.a, term.c, term.d, output.thread_sums);
 #else
   for (int64_t thread_id = 0; thread_id < kNumThreads; ++thread_id) {
     ComputeIntegralKernel(
@@ -482,7 +482,7 @@ double DurationInSec(const Clock::time_point& a, const Clock::time_point& b) {
 
 int main() {
   // HexIndex is 1-origin index.
-  static constexpr int64_t kHexIndex = 1;
+  static constexpr int64_t kHexIndex = 10;
 
   const Term kTerms[] = {
       {10, -1, 4, 1, Term::Sign::kNegative, Term::Flip::kFlip},
