@@ -1,9 +1,9 @@
-CXX=nvcc
-CXXFLAGS=-O2
+CXX=clang++
+CXXFLAGS=-O2 -std=c++17
 
 .PHONY: all
 all: bbp
 
-bbp: bbp.cu
-	$(CXX) $(CXXFLAGS) -o $@ $^
+bbp: bbp.cu bbp.cc
+	$(CXX) $(CXXFLAGS) -o $@ bbp.cc
 

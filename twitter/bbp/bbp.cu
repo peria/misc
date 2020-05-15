@@ -5,15 +5,27 @@
 #include <iostream>
 #include <memory>
 
+#ifdef __NVCC__
 #include <cuda.h>
 #include <cuda_runtime.h>
+#endif
+
+#ifdef __NVCC__
+#define HOST   __host__
+#define DEVICE __device__
+#define GLOBAL __global__
+#else
+#define HOST
+#define DEVICE
+#define GLOBAL
+#endif
 
 using uint128_t = __uint128_t;
 using Clock = std::chrono::steady_clock;
 
 constexpr int64_t kComputeSize = 4;
-constexpr int64_t kNumBlocks = 32;
-constexpr int64_t kNumGrids = 32;
+constexpr int64_t kNumBlocks = 128;
+constexpr int64_t kNumGrids = 128;
 constexpr int64_t kNumThreads = kNumBlocks * kNumGrids;
 static_assert(kNumThreads % 2 == 0, "Number of threads must be even");
 
@@ -34,12 +46,20 @@ struct Output {
   Output(const int64_t size, const int64_t num_threads) {
     part_pi = new uint64_t[size];
     term_sums = new uint64_t[2 * size];
+#ifdef __NVCC__
     cudaMalloc(&thread_sums, sizeof(uint64_t) * size * num_threads);
+#else
+    thread_sums = new uint64_t[size * num_threads];
+#endif
   }
   ~Output() {
     delete[](part_pi);
     delete[](term_sums);
+#ifdef __NVCC__
     cudaFree(&thread_sums);
+#else
+    delete[](thread_sums);
+#endif
   }
 
   uint64_t* part_pi = nullptr;
@@ -47,7 +67,8 @@ struct Output {
   uint64_t* thread_sums = nullptr;
 };
 
-__device__ __host__ inline uint64_t umul64hi(uint64_t x, uint64_t y) {
+DEVICE HOST
+inline uint64_t umul64hi(uint64_t x, uint64_t y) {
 #ifdef __CUDA_ARCH__
   return __umul64hi(x, y);
 #elif 1
@@ -72,7 +93,8 @@ __device__ __host__ inline uint64_t umul64hi(uint64_t x, uint64_t y) {
 }
 
 // Make 2^63 <= |d| < 2^64
-__device__ __host__ int64_t NormalizeDivider(uint64_t& d) {
+DEVICE HOST
+int64_t NormalizeDivider(uint64_t& d) {
   int64_t shift = 0;
   if ((d & (-1ULL << 32)) == 0) {
     shift += 32;
@@ -101,11 +123,12 @@ __device__ __host__ int64_t NormalizeDivider(uint64_t& d) {
   return shift;
 }
 
-__device__ __host__ uint64_t Div2ByNormalized1(uint64_t n0,
-                                               uint64_t n1,
-                                               const int64_t shift,
-                                               const uint64_t d,
-                                               uint64_t& rem) {
+DEVICE HOST
+uint64_t Div2ByNormalized1(uint64_t n0,
+                           uint64_t n1,
+                           const int64_t shift,
+                           const uint64_t d,
+                           uint64_t& rem) {
   // Nomalize numerator ==> remain
   uint64_t r0 = n0 << shift;
   uint64_t r1 = (n1 << shift) | (n0 >> (64 - shift));
@@ -152,7 +175,8 @@ __device__ __host__ uint64_t Div2ByNormalized1(uint64_t n0,
 
 // Computes a^e mod m using Montgomery Reduction.
 // Reference; https://min-25.hatenablog.com/entry/2017/08/20/171214
-__device__ __host__ uint64_t PowMod(uint64_t a, uint64_t e, const uint64_t m) {
+DEVICE HOST
+uint64_t PowMod(uint64_t a, uint64_t e, const uint64_t m) {
   uint64_t inv = m;
   for (int i = 0; i < 5; ++i)
     inv *= 2 - inv * m;
@@ -176,10 +200,11 @@ __device__ __host__ uint64_t PowMod(uint64_t a, uint64_t e, const uint64_t m) {
   return (r & (1ULL << 63)) ? (r + m) : r;
 }
 
-__device__ __host__ void DivMod1(const uint64_t a,
-                                 const uint64_t b,
-                                 const int64_t size,
-                                 uint64_t* dst) {
+DEVICE HOST
+void DivMod1(const uint64_t a,
+             const uint64_t b,
+             const int64_t size,
+             uint64_t* dst) {
 #if 0
   // Uint128
   uint128_t t = a;
@@ -233,17 +258,18 @@ __device__ __host__ void DivMod1(const uint64_t a,
 #endif
 }
 
-__device__ __host__ void Div(const uint64_t* a,
-                             const uint64_t b,
-                             const int64_t size,
-                             uint64_t* dst) {
+DEVICE HOST
+void Div(const uint64_t* a,
+         const uint64_t b,
+         const int64_t size,
+         uint64_t* dst) {
 #if 0
   // Uint128
-  uint128_t t;
+  uint128_t r;
   for (int64_t i = size - 1; i >= 0; --i) {
-    t = (t << 64) + a[i];
-    dst[i] = t / b;
-    t %= b;
+    r = (r << 64) + a[i];
+    dst[i] = r / b;
+    r %= b;
   }
 #else
   // Pure C++
@@ -256,8 +282,9 @@ __device__ __host__ void Div(const uint64_t* a,
     r0 = a[i];
     r1 |= r0 >> (64 - shift);
     r0 <<= shift;
+
     uint64_t qt = r1 / b1;
-    uint64_t p0 = b * qt;
+    uint64_t p0 = nb * qt;
     uint64_t p1 = umul64hi(nb, qt);
     {
       const uint64_t u0 = (r1 << 32) | (r0 >> 32);
@@ -269,11 +296,12 @@ __device__ __host__ void Div(const uint64_t* a,
         --qt;
       }
     }
+
     uint64_t q = qt << 32;
     uint64_t w0 = p0 << 32;
     uint64_t w1 = (p1 << 32) | (p0 >> 32);
     if (w0 > r0)
-      --w1;
+      --r1;
     r0 -= w0;
     r1 -= w1;
 
@@ -287,12 +315,12 @@ __device__ __host__ void Div(const uint64_t* a,
       --qt;
     }
     r0 -= p0;
-    dst[i] = q | qt;
+    dst[i] = q + qt;
   }
 #endif
 }
 
-__device__ __host__
+DEVICE HOST
 void Add(const uint64_t* a,
          const uint64_t* b,
          const int64_t size,
@@ -310,7 +338,7 @@ void Add(const uint64_t* a,
   }
 }
 
-__device__ __host__
+DEVICE HOST
 void Subtract(const uint64_t* a,
               const uint64_t* b,
               const int64_t size,
@@ -328,14 +356,21 @@ void Subtract(const uint64_t* a,
   }
 }
 
-__global__
-void ComputeIntegralKernel(const int64_t n,
+GLOBAL
+void ComputeIntegralKernel(
+#ifndef __NVCC__
+                           const int64_t thread_id,
+#endif
+                           const int64_t n,
                            const int64_t bit_shift,
                            const int64_t a,
                            const int64_t c,
                            const int64_t d,
-                           uint64_t* thread_sum) {
+                           uint64_t* thread_sums) {
+#ifdef __NVCC__
   const int64_t thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+#endif
+  uint64_t* thread_sum = thread_sums + thread_id;
   for (int64_t i = 0; i < kComputeSize; ++i)
     thread_sum[i] = 0;
 
@@ -355,11 +390,17 @@ void ComputeIntegralPart(const int64_t n,
                          Output& output) {
   const int64_t n_in_parallel = n / kNumThreads * kNumThreads;
 
+#ifdef __NVCC__
+  ComputeIntegralKernel<<<kNumGrids, kNumBlocks>>>(
+      n_in_parallel,
+      bit_shift, term.a, term.c, term.d, output.thread_thread_sums);
+#else
   for (int64_t thread_id = 0; thread_id < kNumThreads; ++thread_id) {
-    uint64_t* thread_sum = output.thread_sums + thread_id * kComputeSize;
-    ComputeIntegralKernel<<<kNumGrids, kNumBlocks>>>(
-        n_in_parallel, bit_shift, term.a, term.c, term.d, thread_sum);
+    ComputeIntegralKernel(
+        thread_id,
+        n_in_parallel, bit_shift, term.a, term.c, term.d, output.thread_sums);
   }
+#endif
 
   uint64_t* term_sums[] = {output.term_sums, output.term_sums + kComputeSize};
   // single thread in CPU
@@ -375,9 +416,14 @@ void ComputeIntegralPart(const int64_t n,
   std::unique_ptr<uint64_t[]> thread_sums(
       new uint64_t[kComputeSize * kNumThreads]);
   // Copy GPU memory to main memory.
+#ifdef __NVCC__
   cudaMemcpy(thread_sums.get(), output.thread_sums,
              sizeof(uint64_t) * kComputeSize * kNumThreads,
              cudaMemcpyDeviceToHost);
+#else
+  std::memcpy(thread_sums.get(), output.thread_sums,
+              sizeof(uint64_t) * kComputeSize * kNumThreads);
+#endif
   for (int64_t i = 0; i < kNumThreads; ++i) {
     uint64_t* thread_sum = thread_sums.get() + i * kComputeSize;
     Add(term_sums[i & 1], thread_sum, kComputeSize, term_sums[i & 1]);
@@ -436,7 +482,7 @@ double DurationInSec(const Clock::time_point& a, const Clock::time_point& b) {
 
 int main() {
   // HexIndex is 1-origin index.
-  static constexpr int64_t kHexIndex = 10000000;
+  static constexpr int64_t kHexIndex = 1;
 
   const Term kTerms[] = {
       {10, -1, 4, 1, Term::Sign::kNegative, Term::Flip::kFlip},
