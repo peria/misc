@@ -126,14 +126,10 @@ int64_t NormalizeDivider(uint64_t& d) {
 }
 
 DEVICE HOST
-uint64_t Div2ByNormalized1(uint64_t n0,
-                           uint64_t n1,
-                           const int64_t shift,
+uint64_t Div2ByNormalized1(uint64_t r0,
+                           uint64_t r1,
                            const uint64_t d,
                            uint64_t& rem) {
-  uint64_t r0 = n0 << shift;
-  uint64_t r1 = (n1 << shift) | (n0 >> (64 - shift));
-
   uint64_t d1 = d >> 32;
   uint64_t qt = r1 / d1;
 
@@ -170,7 +166,7 @@ uint64_t Div2ByNormalized1(uint64_t n0,
   r0 -= p0;
   q |= qt;
 
-  rem = r0 >> shift;
+  rem = r0;
   return q;
 }
 
@@ -188,7 +184,14 @@ uint64_t PowMod(uint64_t a, uint64_t e, const uint64_t m) {
   // Uint128
   r2 = -uint128_t(m) % m;
 #else
-  Div2ByNormalized1(-m, (~0ULL) % m, shift, mm, r2);
+  {
+    uint64_t m0 = -m;
+    uint64_t m1 = (~0ULL) % m;
+    m1 = (m1 << shift) + (m0 >> (64 - shift));
+    m0 <<= shift;
+    Div2ByNormalized1(m0, m1, mm, r2);
+  }
+  r2 >>= shift;
 #endif
 
   uint64_t r = -umul64hi(r2 * inv, m);
@@ -223,43 +226,10 @@ void DivMod1(const uint64_t a,
   // Pure C++
   uint64_t nb = b;
   int64_t shift = NormalizeDivider(nb);
-  uint64_t b1 = nb >> 32;
-  uint64_t r0 = a << shift;
+  uint64_t r1 = a << shift;
   for (int64_t i = size - 1; i >= 0; --i) {
-    uint64_t r1 = r0;
-    r0 = 0;
-    uint64_t qt = r1 / b1;
-    uint64_t p0 = nb * qt;
-    uint64_t p1 = umul64hi(nb, qt);
-    {
-      const uint64_t u0 = (r1 << 32) | (r0 >> 32);
-      const uint64_t u1 = r1 >> 32;
-      while (p1 > u1 || (p1 == u1 && p0 > u0)) {
-        if (p0 < nb)
-          --p1;
-        p0 -= nb;
-        --qt;
-      }
-    }
-    uint64_t q = qt << 32;
-    uint64_t w0 = p0 << 32;
-    uint64_t w1 = (p1 << 32) | (p0 >> 32);
-    if (w0 > r0)
-      --r1;
-    r0 -= w0;
-    r1 -= w1;
-
-    qt = ((r1 << 32) | (r0 >> 32)) / b1;
-    p0 = nb * qt;
-    p1 = umul64hi(nb, qt);
-    while (p1 > r1 || (p1 == r1 && p0 > r0)) {
-      if (p0 < nb)
-        --p1;
-      p0 -= nb;
-      --qt;
-    }
-    r0 -= p0;
-    dst[i] = q + qt;
+    uint64_t r0 = 0;
+    dst[i] = Div2ByNormalized1(r0, r1, nb, r1);
   }
 #endif
 }
@@ -281,47 +251,11 @@ void Div(const uint64_t* a,
   // Pure C++
   uint64_t nb = b;
   int64_t shift = NormalizeDivider(nb);
-  uint64_t b1 = nb >> 32;
-  uint64_t r0 = 0;
+  uint64_t r1 = 0;
   for (int64_t i = size - 1; i >= 0; --i) {
-    uint64_t r1 = r0;
-    r0 = a[i];
-    r1 |= r0 >> (64 - shift);
-    r0 <<= shift;
-
-    uint64_t qt = r1 / b1;
-    uint64_t p0 = nb * qt;
-    uint64_t p1 = umul64hi(nb, qt);
-    {
-      const uint64_t u0 = (r1 << 32) | (r0 >> 32);
-      const uint64_t u1 = r1 >> 32;
-      while (p1 > u1 || (p1 == u1 && p0 > u0)) {
-        if (p0 < nb)
-          --p1;
-        p0 -= nb;
-        --qt;
-      }
-    }
-
-    uint64_t q = qt << 32;
-    uint64_t w0 = p0 << 32;
-    uint64_t w1 = (p1 << 32) | (p0 >> 32);
-    if (w0 > r0)
-      --r1;
-    r0 -= w0;
-    r1 -= w1;
-
-    qt = ((r1 << 32) | (r0 >> 32)) / b1;
-    p0 = nb * qt;
-    p1 = umul64hi(nb, qt);
-    while (p1 > r1 || (p1 == r1 && p0 > r0)) {
-      if (p0 < nb)
-        --p1;
-      p0 -= nb;
-      --qt;
-    }
-    r0 -= p0;
-    dst[i] = q + qt;
+    r1 |= a[i] >> (64 - shift);
+    uint64_t r0 = a[i] << shift;
+    dst[i] = Div2ByNormalized1(r0, r1, nb, r1);
   }
 #endif
 }
