@@ -70,13 +70,18 @@ struct Output {
 };
 
 DEVICE HOST
-inline uint64_t umul64hi(uint64_t x, uint64_t y) {
+inline uint64_t umul64hi(const uint64_t x, const uint64_t y) {
 #ifdef __CUDA_ARCH__
   return __umul64hi(x, y);
 #elif 1
   // Asm
   uint64_t z;
-  asm("mul %2" : "=d"(z) : "a"(x), "r"(y));
+  asm("movq %1,%%rax\n\t"
+      "mul %2\n\t"
+      "movq %%rdx,%0\n\t"
+      : "=r"(z)
+      : "r"(x), "r"(y)
+      : "rax", "rdx");
   return z;
 #elif 0
   // Uint128
@@ -125,6 +130,13 @@ int64_t NormalizeDivider(uint64_t& d) {
   return shift;
 }
 
+// https://gmplib.org/~tege/division-paper.pdf
+DEVICE HOST
+uint64_t GetInverse(uint64_t d) {
+  static constexpr uint128_t kFull128 = -uint128_t(1);
+  return uint64_t(kFull128 / d);
+}
+
 DEVICE HOST
 uint64_t Div2ByNormalized1(uint64_t r0,
                            uint64_t r1,
@@ -168,6 +180,52 @@ uint64_t Div2ByNormalized1(uint64_t r0,
 
   rem = r0;
   return q;
+}
+
+DEVICE HOST
+uint64_t Div2ByNormalized1(const uint64_t u0,
+                           const uint64_t u1,
+                           const uint64_t d,
+                           const uint64_t v,
+                           uint64_t& rem) {
+#if 0
+  // Uint128
+  uint128_t q = uint128_t(v) * u1;
+  q += (uint128_t(u1) << 64) + u0;
+  uint64_t q1 = q >> 64;
+  ++q1;
+  uint64_t r = u0 - q1 * d;
+  if (r > uint64_t(q)) {
+    --q1;
+    r += d;
+  }
+  if (r >= d) {
+    ++q1;
+    r -= d;
+  }
+  rem = r;
+  return q1;
+#else
+  // Pure C++
+  uint64_t q0 = v * u1;
+  uint64_t q1 = umul64hi(v, u1);
+  q1 += u1;
+  q0 += u0;
+  if (q0 < u0)
+    ++q1;
+  ++q1;
+  uint64_t r = u0 - q1 * d;
+  if (r > q0) {
+    --q1;
+    r += d;
+  }
+  if (r >= d) {
+    ++q1;
+    r -= d;
+  }
+  rem = r;
+  return q1;
+#endif
 }
 
 // Computes a^e mod m using Montgomery Reduction.
@@ -226,10 +284,11 @@ void DivMod1(const uint64_t a,
   // Pure C++
   uint64_t nb = b;
   int64_t shift = NormalizeDivider(nb);
+  uint64_t inv = GetInverse(nb);
   uint64_t r1 = a << shift;
   for (int64_t i = size - 1; i >= 0; --i) {
     uint64_t r0 = 0;
-    dst[i] = Div2ByNormalized1(r0, r1, nb, r1);
+    dst[i] = Div2ByNormalized1(r0, r1, nb, inv, r1);
   }
 #endif
 }
@@ -251,6 +310,7 @@ void Div(const uint64_t* a,
   // Pure C++
   uint64_t nb = b;
   int64_t shift = NormalizeDivider(nb);
+  uint64_t inv = GetInverse(nb);
   uint64_t r1 = 0;
   for (int64_t i = size - 1; i >= 0; --i) {
     r1 |= a[i] >> (64 - shift);
@@ -299,14 +359,14 @@ void Subtract(const uint64_t* a,
 GLOBAL
 void ComputeIntegralKernel(
 #ifndef __NVCC__
-                           const int64_t thread_id,
+    const int64_t thread_id,
 #endif
-                           const int64_t n,
-                           const int64_t bit_shift,
-                           const int64_t a,
-                           const int64_t c,
-                           const int64_t d,
-                           uint64_t* thread_sums) {
+    const int64_t n,
+    const int64_t bit_shift,
+    const int64_t a,
+    const int64_t c,
+    const int64_t d,
+    uint64_t* thread_sums) {
 #ifdef __NVCC__
   const int64_t thread_id = blockIdx.x * blockDim.x + threadIdx.x;
 #endif
@@ -332,13 +392,11 @@ void ComputeIntegralPart(const int64_t n,
 
 #ifdef __NVCC__
   ComputeIntegralKernel<<<kNumGrids, kNumBlocks>>>(
-      n_in_parallel,
-      bit_shift, term.a, term.c, term.d, output.thread_sums);
+      n_in_parallel, bit_shift, term.a, term.c, term.d, output.thread_sums);
 #else
   for (int64_t thread_id = 0; thread_id < kNumThreads; ++thread_id) {
-    ComputeIntegralKernel(
-        thread_id,
-        n_in_parallel, bit_shift, term.a, term.c, term.d, output.thread_sums);
+    ComputeIntegralKernel(thread_id, n_in_parallel, bit_shift, term.a, term.c,
+                          term.d, output.thread_sums);
   }
 #endif
 
