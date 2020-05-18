@@ -83,7 +83,7 @@ inline uint64_t umul64hi(const uint64_t x, const uint64_t y) {
       : "r"(x), "r"(y)
       : "rax", "rdx");
   return z;
-#elif 0
+#elif 1
   // Uint128
   return (uint128_t(x) * y) >> 64;
 #else
@@ -255,13 +255,18 @@ uint64_t PowMod(uint64_t a, uint64_t e, const uint64_t m) {
   uint64_t r = -umul64hi(r2 * inv, m);
   r = (r & (1ULL << 63)) ? (r + m) : r;
   a *= r;
-  for (; e; e >>= 1) {
+
+  if (e & 1) {
+    r = umul64hi(r, a) - umul64hi(r * a * inv, m);
+    r = (r & (1ULL << 63)) ? (r + m) : r;
+  }
+  while (e >>= 1) {
+    a = umul64hi(a, a) - umul64hi(a * a * inv, m);
+    a = (a & (1ULL << 63)) ? (a + m) : a;
     if (e & 1) {
       r = umul64hi(r, a) - umul64hi(r * a * inv, m);
       r = (r & (1ULL << 63)) ? (r + m) : r;
     }
-    a = umul64hi(a, a) - umul64hi(a * a * inv, m);
-    a = (a & (1ULL << 63)) ? (a + m) : a;
   }
   r = -umul64hi(r * inv, m);
   return (r & (1ULL << 63)) ? (r + m) : r;
