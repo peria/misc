@@ -133,8 +133,24 @@ int64_t NormalizeDivider(uint64_t& d) {
 // https://gmplib.org/~tege/division-paper.pdf
 DEVICE HOST
 uint64_t GetInverse(uint64_t d) {
+#if 0
+  // Uint128
   static constexpr uint128_t kFull128 = -uint128_t(1);
   return uint64_t(kFull128 / d);
+#else
+  // Pure C++
+  uint64_t d0 = d & 1;
+  uint64_t d9 = d >> 55;
+  uint64_t d40 = (d >> 24) + 1;
+  uint64_t d63 = (d >> 1) + (d & 1);
+  uint64_t v0 = ((1ULL << 19) - (3ULL << 8)) / d9;  // Table
+  uint64_t v1 = (v0 << 11) - ((v0 * v0 * d40) >> 40) - 1;
+  uint64_t v2 = (v1 << 13) + ((v1 * ((1ULL << 60) - v1 * d40)) >> 47);
+  uint64_t e = -v2 * d63 + (v2 / 2) * d0;
+  uint64_t v3 = (v2 << 31) + (umul64hi(v2, e) >> 1);
+  uint64_t v4 = v3 - (umul64hi(v3 + 1, d) + d);
+  return v4;
+#endif
 }
 
 DEVICE HOST
@@ -242,12 +258,14 @@ uint64_t PowMod(uint64_t a, uint64_t e, const uint64_t m) {
   // Uint128
   r2 = -uint128_t(m) % m;
 #else
+  // Pure C++
   {
     uint64_t m0 = -m;
     uint64_t m1 = (~0ULL) % m;
     m1 = (m1 << shift) + (m0 >> (64 - shift));
     m0 <<= shift;
-    Div2ByNormalized1(m0, m1, mm, r2);
+    uint64_t inv = GetInverse(mm);
+    Div2ByNormalized1(m0, m1, mm, inv, r2);
   }
   r2 >>= shift;
 #endif
