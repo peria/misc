@@ -271,23 +271,24 @@ uint64_t PowMod(uint64_t a, uint64_t e, const uint64_t m) {
 #endif
 
   uint64_t r = -umul64hi(r2 * inv, m);
-  r = (r & (1ULL << 63)) ? (r + m) : r;
+  r += (r >> 63) * m;
   a *= r;
 
   if (e & 1) {
     r = umul64hi(r, a) - umul64hi(r * a * inv, m);
-    r = (r & (1ULL << 63)) ? (r + m) : r;
+    r += (r >> 63) * m;
   }
   while (e >>= 1) {
     a = umul64hi(a, a) - umul64hi(a * a * inv, m);
-    a = (a & (1ULL << 63)) ? (a + m) : a;
+    a += (a >> 63) * m;
     if (e & 1) {
       r = umul64hi(r, a) - umul64hi(r * a * inv, m);
-      r = (r & (1ULL << 63)) ? (r + m) : r;
+      r += (r >> 63) * m;
     }
   }
   r = -umul64hi(r * inv, m);
-  return (r & (1ULL << 63)) ? (r + m) : r;
+  r += (r >> 63) * m;
+  return r;
 }
 
 DEVICE HOST
@@ -338,7 +339,7 @@ void Div(const uint64_t* a,
   for (int64_t i = size - 1; i >= 0; --i) {
     r1 |= a[i] >> (64 - shift);
     uint64_t r0 = a[i] << shift;
-    dst[i] = Div2ByNormalized1(r0, r1, nb, r1);
+    dst[i] = Div2ByNormalized1(r0, r1, nb, inv, r1);
   }
 #endif
 }
