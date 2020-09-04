@@ -15,21 +15,29 @@ class StockhamDIT final : public FFT {
   void setUp(int n_) override {
     n = n_;
     work.resize(n);
-  }
-
-  void tearDown() override {
-    work.clear();
-  }
-
-  void dft(Complex* a) override {
-    Complex* x = a;
-    Complex* y = work.data();
     const double theta = -2 * M_PI / n;
     for (int l = 1, m = n / 2; l < n; l *= 2, m /= 2) {
       const double t0 = theta * l;
       for (int k = 0; k < m; ++k) {
 	double t = t0 * k;
 	Complex w {std::cos(t), std::sin(t)};
+	ws.push_back(w);
+      }
+    }
+  }
+
+  void tearDown() override {
+    ws.clear();
+    work.clear();
+  }
+
+  void dft(Complex* a) override {
+    Complex* x = a;
+    Complex* y = work.data();
+    auto iw = ws.begin();
+    for (int l = 1, m = n / 2; l < n; l *= 2, m /= 2) {
+      for (int k = 0; k < m; ++k) {
+	Complex w = *iw++;
 	for (int j = 0; j < l; ++j) {
 	  int ix0 = k * l + j;
 	  int ix1 = ix0 + l * m;
@@ -51,12 +59,10 @@ class StockhamDIT final : public FFT {
   void idft(Complex* a) override {
     Complex* x = a;
     Complex* y = work.data();
-    const double theta = 2 * M_PI / n;
+    auto iw = ws.begin();
     for (int l = 1, m = n / 2; l < n; l *= 2, m /= 2) {
-      const double t0 = theta * l;
       for (int k = 0; k < m; ++k) {
-	double t = t0 * k;
-	Complex w {std::cos(t), std::sin(t)};
+	Complex w = (*iw++).conj();
 	for (int j = 0; j < l; ++j) {
 	  int ix0 = k * l + j;
 	  int ix1 = ix0 + l * m;
@@ -79,5 +85,6 @@ class StockhamDIT final : public FFT {
   };
 
   int n;
+  std::vector<Complex> ws;
   std::vector<Complex> work;
 };

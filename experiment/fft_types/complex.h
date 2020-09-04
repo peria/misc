@@ -19,6 +19,7 @@ struct Complex {
     return *this;
   }
   Complex i() const { return Complex{-imag, real}; }
+  Complex conj() const { return Complex{real, -imag}; }
 
   double real = 0;
   double imag = 0;

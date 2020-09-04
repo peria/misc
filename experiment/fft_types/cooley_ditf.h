@@ -13,15 +13,26 @@ class CooleyDITF final : public FFT {
 
   void setUp(int n_) override {
     n = n_;
-  };
-
-  void dft(Complex* a) override {
-    // DIT
-    const double theta = - 2 * M_PI / n;
+    const double theta = -2 * M_PI / n;
     for (int l = 1, m = n / 2; l < n; l *= 2, m /= 2) {
       for (int j = 0; j < l; ++j) {
 	const double t = theta * bitrev(j, n);
 	Complex w {std::cos(t), std::sin(t)};
+	ws.push_back(w);
+      }
+    }
+  };
+
+  void tearDown() override {
+    ws.clear();
+  }
+
+  void dft(Complex* a) override {
+    // DIT
+    auto iw = ws.begin();
+    for (int l = 1, m = n / 2; l < n; l *= 2, m /= 2) {
+      for (int j = 0; j < l; ++j) {
+	Complex w = *iw++;
 	for (int k = 0; k < m; ++k) {
 	  int k0 = 2 * j * m + k;
 	  int k1 = k0 + m;
@@ -36,11 +47,11 @@ class CooleyDITF final : public FFT {
 
   void idft(Complex* a) override {
     // DIF
-    const double theta = 2 * M_PI / n;
+    auto iw = ws.end();
     for (int l = n / 2, m = 1; m < n; l /= 2, m *= 2) {
+      iw -= l;
       for (int j = 0; j < l; ++j) {
-	const double t = theta * bitrev(j, n);
-	Complex w {std::cos(t), std::sin(t)};
+	Complex w = (*iw++).conj();
 	for (int k = 0; k < m; ++k) {
 	  int k0 = 2 * j * m + k;
 	  int k1 = k0 + m;
@@ -50,6 +61,7 @@ class CooleyDITF final : public FFT {
 	  a[k1] = (a0 - a1) * w;
 	}
       }
+      iw -= l;
     }
     double inv = 1.0 / n;
     for (int i = 0; i < n; ++i)
@@ -65,4 +77,5 @@ class CooleyDITF final : public FFT {
   }
 
   int n;
+  std::vector<Complex> ws;
 };
