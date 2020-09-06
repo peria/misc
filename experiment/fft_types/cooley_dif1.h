@@ -84,7 +84,7 @@ class CooleyDIF1 final : public FFT {
     double x1 = x[1];
     x[0] = x0 + x1;
     x[1] = x0 - x1;
-    double th = -M_PI / n;
+
     auto f = [](Complex& ai, Complex& aj, const Complex& w) {
       aj = aj.conj();
       Complex c {1 - w.imag, w.real};
@@ -92,11 +92,17 @@ class CooleyDIF1 final : public FFT {
       ai = ai - z;
       aj = (aj + z).conj();
     };
-    for (int i = 1, j = n - 1; i < j; ++i, --j) {
-      Complex w {std::cos(th * i), std::sin(th * i)};
-      f(a[i], a[j], w);
+
+    double th = -M_PI / n;
+    Complex w {std::cos(th), std::sin(th)};
+    f(a[1], a[n - 1], w);
+    for (int i = 2, j = n - 2; i < j; i += 2, j -= 2) {
+      Complex w0 = ws[i / 2];
+      // TODO: j=>irevs[j]
+      f(a[i], a[j], w0);
+      f(a[i + 1], a[j - 1], w0 * w);
     }
-    x[n + 1] = -x[n + 1];
+    a[n / 2] = a[n / 2].conj();
   }
 
   void irft(double* x) override {
@@ -105,17 +111,25 @@ class CooleyDIF1 final : public FFT {
     double x0 = x[0], x1 = x[1];
     x[0] = (x0 + x1) * 0.5;
     x[1] = (x0 - x1) * 0.5;
-    double th = M_PI / n;
-    for (int i = 1, j = n - 1; i < j; ++i, --j) {
-      Complex ai = a[i];
-      Complex aj = a[j].conj();
-      Complex w {std::cos(th * i), std::sin(th * i)};
+
+    auto f = [](Complex& ai, Complex& aj, const Complex& w) {
+      aj = aj.conj();
       Complex c {1 + w.imag, -w.real};
       Complex z = c * (ai - aj) * 0.5;
-      a[i] = ai - z;
-      a[j] = (aj + z).conj();
+      ai = ai - z;
+      aj = (aj + z).conj();
+    };
+
+    double th = M_PI / n;
+    Complex w {std::cos(th), std::sin(th)};
+    f(a[1], a[n - 1], w);
+    for (int i = 2, j = n - 2; i < j; i += 2, j -= 2) {
+      Complex w0 = ws[i / 2].conj();
+      // TODO: j=>irevs[j]
+      f(a[i], a[j], w0);
+      f(a[i + 1], a[j - 1], w0 * w);
     }
-    x[n + 1] = -x[n + 1];
+    a[n / 2] = a[n / 2].conj();
     idft(a);
   }
 
