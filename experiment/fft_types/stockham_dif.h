@@ -9,7 +9,7 @@ class StockhamDIF final : public FFT {
   const char* name() const override { return "StockhamDIF"; }
 
   void setUp(int n_) override {
-    n = n_;
+    FFT::setUp(n_);
     work.resize(n);
     const double theta = -2 * M_PI / n;
     for (int l = n / 2, m = 1; m < n; l /= 2, m *= 2) {
@@ -82,7 +82,6 @@ class StockhamDIF final : public FFT {
       a[i] *= inv;
   };
 
-  int n;
   std::vector<Complex> ws;
   std::vector<Complex> work;
 };
