@@ -85,14 +85,16 @@ class CooleyDIF1 final : public FFT {
     x[0] = x0 + x1;
     x[1] = x0 - x1;
     double th = -M_PI / n;
-    for (int i = 1, j = n - 1; i < j; ++i, --j) {
-      Complex ai = a[i];
-      Complex aj = a[j].conj();
-      Complex w {std::cos(th * i), std::sin(th * i)};
+    auto f = [](Complex& ai, Complex& aj, const Complex& w) {
+      aj = aj.conj();
       Complex c {1 - w.imag, w.real};
       Complex z = c * (ai - aj) * 0.5;
-      a[i] = ai - z;
-      a[j] = (aj + z).conj();
+      ai = ai - z;
+      aj = (aj + z).conj();
+    };
+    for (int i = 1, j = n - 1; i < j; ++i, --j) {
+      Complex w {std::cos(th * i), std::sin(th * i)};
+      f(a[i], a[j], w);
     }
     x[n + 1] = -x[n + 1];
   }
