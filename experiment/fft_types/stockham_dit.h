@@ -20,9 +20,9 @@ class StockhamDIT final : public FFT {
     for (int l = 1, m = n / 2; l < n; l *= 2, m /= 2) {
       const double t0 = theta * l;
       for (int k = 0; k < m; ++k) {
-	double t = t0 * k;
-	Complex w {std::cos(t), std::sin(t)};
-	ws.push_back(w);
+        double t = t0 * k;
+        Complex w{std::cos(t), std::sin(t)};
+        ws.push_back(w);
       }
     }
   }
@@ -38,23 +38,23 @@ class StockhamDIT final : public FFT {
     auto iw = ws.begin();
     for (int l = 1, m = n / 2; l < n; l *= 2, m /= 2) {
       for (int k = 0; k < m; ++k) {
-	Complex w = *iw++;
-	for (int j = 0; j < l; ++j) {
-	  int ix0 = k * l + j;
-	  int ix1 = ix0 + l * m;
-	  int iy0 = k * 2 * l + j;
-	  int iy1 = iy0 + l;
-	  Complex x0 = x[ix0];
-	  Complex x1 = x[ix1];
-	  y[iy0] = x0 + x1;
-	  y[iy1] = (x0 - x1) * w;
-	}
+        Complex w = *iw++;
+        for (int j = 0; j < l; ++j) {
+          int ix0 = k * l + j;
+          int ix1 = ix0 + l * m;
+          int iy0 = k * 2 * l + j;
+          int iy1 = iy0 + l;
+          Complex x0 = x[ix0];
+          Complex x1 = x[ix1];
+          y[iy0] = x0 + x1;
+          y[iy1] = (x0 - x1) * w;
+        }
       }
       std::swap(x, y);
     }
     if (x != a)
       for (int i = 0; i < n; ++i)
-	a[i] = x[i];
+        a[i] = x[i];
   };
 
   void idft(Complex* a) override {
@@ -63,23 +63,23 @@ class StockhamDIT final : public FFT {
     auto iw = ws.begin();
     for (int l = 1, m = n / 2; l < n; l *= 2, m /= 2) {
       for (int k = 0; k < m; ++k) {
-	Complex w = (*iw++).conj();
-	for (int j = 0; j < l; ++j) {
-	  int ix0 = k * l + j;
-	  int ix1 = ix0 + l * m;
-	  int iy0 = k * 2 * l + j;
-	  int iy1 = iy0 + l;
-	  Complex x0 = x[ix0];
-	  Complex x1 = x[ix1];
-	  y[iy0] = x0 + x1;
-	  y[iy1] = (x0 - x1) * w;
-	}
+        Complex w = (*iw++).conj();
+        for (int j = 0; j < l; ++j) {
+          int ix0 = k * l + j;
+          int ix1 = ix0 + l * m;
+          int iy0 = k * 2 * l + j;
+          int iy1 = iy0 + l;
+          Complex x0 = x[ix0];
+          Complex x1 = x[ix1];
+          y[iy0] = x0 + x1;
+          y[iy1] = (x0 - x1) * w;
+        }
       }
       std::swap(x, y);
     }
     if (x != a)
       for (int i = 0; i < n; ++i)
-	a[i] = x[i];
+        a[i] = x[i];
     double inv = 1.0 / n;
     for (int i = 0; i < n; ++i)
       a[i] *= inv;

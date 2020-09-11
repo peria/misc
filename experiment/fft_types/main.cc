@@ -4,108 +4,59 @@
 #include <memory>
 #include <vector>
 
-#include "stockham_dit.h"
-#include "stockham_dif.h"
-#include "cooley_dit1.h"
-#include "cooley_dif1.h"
-#include "cooley_dit2.h"
+//#define USE_RADIX8
+#include "pmp.h"
 
 using Clock = std::chrono::system_clock;
 using MS = std::chrono::milliseconds;
 
+std::vector<std::vector<Complex>> FFT::s_ws;
+
 int main() {
-  std::vector<std::unique_ptr<FFT>> ffts;
-  ffts.emplace_back(new StockhamDIT);
-  ffts.emplace_back(new StockhamDIF);
-  ffts.emplace_back(new CooleyDIT1);
-  ffts.emplace_back(new CooleyDIF1);
-  ffts.emplace_back(new CooleyDIFT);
+  const int64 kMaxLogN = 26;
+  FFT::resizeWs(kMaxLogN + 1);
 
-#if 0
-  std::cout << "FFT -------------------------------\n";
-  std::cout << "     ";
-  for (auto& fft : ffts) {
-    std::cout << std::setw(10) << fft->name() << " ";
-  }
-  std::cout << "\n";
+  std::cout << "| #    | MFLOPS    |\n"
+            << "|------|----------:|\n";
+  for (int64 logn = 2; logn <= kMaxLogN; ++logn) {
+    std::cout << "| 2^" << std::setw(2) << logn << " | ";
 
-  for (int logn = 2; logn <= 23; ++logn) {
-    std::cout << "2^" << std::setw(2) << logn << " ";
-
-    const int n = 1 << logn;
+    const int64 n = 1LL << logn;
     std::vector<Complex> data(n);
-    for (auto& fft : ffts) {
-      fft->setUp(n);
-      for (int i = 0; i < n; ++i) {
-        data[i].real = 2 * i;
-        data[i].imag = 2 * i + 1;
-      }
-      auto start = Clock::now();
-      for (int i = 0; i < 10; ++i) {
-        fft->dft(data.data());
-        fft->idft(data.data());
-      }
-      auto end = Clock::now();
-      fft->tearDown();
-      if (n < 256) {
-        for (int i = 0; i < n; ++i) {
-          if (std::abs(data[i].real - 2 * i) > 1e-4 ||
-              std::abs(data[i].imag - (2 * i + 1)) > 1e-4) {
-            std::cerr << fft->name() << " : " << i << "/" << n << "\n"
-                      << "Actual: " << data[i].real << " + " << data[i].imag << "i\n"
-                      << "Expect: " << 2 * i << " + " << 2 * i + 1 << "i\n";
-            return 0;
-          }
+    for (int64 i = 0; i < n; ++i) {
+      data[i] = Complex(2 * i + 1, 2 * i + 2);
+    }
+
+    FFT fft(logn);
+    auto start = Clock::now();
+    auto due_time = start + std::chrono::seconds(3);
+    int64 loop_count = 0;
+    for (loop_count = 0; Clock::now() < due_time; ++loop_count) {
+      fft.rft(data.data(), false);
+      fft.rft(data.data(), true);
+    }
+    auto end = Clock::now();
+
+    if (n < 256) {
+      bool pass = true;
+      for (int64 i = 0; i < n; ++i) {
+        auto& d = data[i];
+        if (std::abs(d.real - (2 * i + 1)) > 1e-4 ||
+            std::abs(d.imag - (2 * i + 2)) > 1e-4) {
+          std::cerr << i << "/" << n << "\n"
+                    << "Actual: " << d.real << " + " << d.imag << "i\n"
+                    << "Expect: " << (2 * i + 1) << " + " << (2 * i + 2)
+                    << "i\n";
+          pass = false;
         }
       }
-      auto dur = std::chrono::duration_cast<MS>(end - start).count() * 1e-3;
-      std::cout << std::setw(10) << std::fixed << std::setprecision(3) << dur << " ";
+      if (!pass)
+        return 0;
     }
-    std::cout << "\n";
+    auto duration = std::chrono::duration_cast<MS>(end - start).count() * 1e-3;
+    std::cout << std::setw(9) << std::fixed << std::setprecision(3)
+              << fft.getMFlops(duration / loop_count) << " |\n";
   }
-#endif
 
-  std::cout << "RFT -------------------------------\n";
-  std::cout << "     ";
-  for (auto& fft : ffts) {
-    std::cout << std::setw(10) << fft->name() << " ";
-  }
-  std::cout << "\n";
-
-  for (int logn = 2; logn <= 23; ++logn) {
-    std::cout << "2^" << std::setw(2) << logn+1 << " ";
-
-    // Number of complex.
-    const int n = 1 << logn;
-    std::vector<double> data(2 * n);
-    for (auto& fft : ffts) {
-      fft->setUp(n);
-      for (int i = 0; i < 2 * n; ++i)
-        data[i] = i;
-      auto start = Clock::now();
-      for (int i = 0; i < 10; ++i) {
-        fft->rft(data.data());
-        fft->irft(data.data());
-      }
-      auto end = Clock::now();
-      fft->tearDown();
-      if (n < 256) {
-        bool pass = true;
-        for (int i = 0; i < 2 * n; ++i) {
-          if (std::abs(data[i] - i) > 1e-4) {
-            std::cerr << fft->name() << " : " << i << "/" << 2 * n << "\n"
-                      << "Actual: " << data[i] << "\n"
-                      << "Expect: " << i << "\n";
-            pass = false;
-          }
-        }
-        if (!pass)
-          return 0;
-      }
-      auto dur = std::chrono::duration_cast<MS>(end - start).count() * 1e-3;
-      std::cout << std::setw(10) << std::fixed << std::setprecision(3) << dur << " ";
-    }
-    std::cout << "\n";
-  }
   return 0;
 }
