@@ -15,7 +15,7 @@ class Cooley : public FFT {
   }
   ~Cooley() override = default;
 
-  static const char* name() { return "CT"; }
+  static const char* name() { return "Cooley"; }
 
   void dft(Complex* x, bool backward) const override {
     if (backward)
