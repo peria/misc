@@ -1,9 +1,17 @@
 #pragma once
 
+#include <cstdint>
+
+using int16 = int16_t;
+using int64 = int64_t;
+using uint64 = uint64_t;
+using uint128 = __uint128_t;
+
 struct Complex {
   Complex() = default;
   Complex(const Complex&) = default;
   Complex(Complex&&) = default;
+  Complex(double re, double im) : real(re), imag(im) {}
   Complex& operator=(const Complex&) = default;
   Complex& operator=(Complex&&) = default;
   Complex& operator*=(const Complex& a) {

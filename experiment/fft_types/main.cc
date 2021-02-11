@@ -4,22 +4,75 @@
 #include <memory>
 #include <vector>
 
-//#define USE_RADIX8
+#include "complex.h"
 #include "pmp.h"
+#include "cooley_dif.h"
 
 using Clock = std::chrono::system_clock;
 using MS = std::chrono::milliseconds;
 
-std::vector<std::vector<Complex>> FFT::s_ws;
+double MeasurePerformance(const FFT& fft, std::vector<Complex>& data) {
+  auto start = Clock::now();
+  auto due_time = start + std::chrono::seconds(3);
+  int64 loop_count = 0;
+  for (loop_count = 0; loop_count < 1e+7 && Clock::now() < due_time; ++loop_count) {
+    fft.dft(data.data(), false);
+    fft.dft(data.data(), true);
+  }
+  auto end = Clock::now();
+  double duration = std::chrono::duration_cast<MS>(end - start).count() * 1e-3;
+  double average = duration / loop_count;
+  double flop = fft.getFlop() * 2;
+  return flop / average * 1e-6;
+}
+
+bool Verify(const std::vector<Complex>& data) {
+  const int64 n = data.size();
+  // Do not check
+  if (n >= 256)
+    return true;
+
+  bool pass = true;
+  static constexpr double kEPS = 1e-4;
+  for (int64 i = 0; i < n; ++i) {
+    auto& d = data[i];
+    if (std::abs(d.real - (2 * i + 1)) > kEPS ||
+        std::abs(d.imag - (2 * i + 2)) > kEPS) {
+      std::cerr << i << "/" << n << "\n"
+                << "Actual: " << d.real << " + " << d.imag << "i\n"
+                << "Expect: " << (2 * i + 1) << " + " << (2 * i + 2)
+                << "i\n";
+      pass = false;
+    }
+  }
+  return pass;
+}
 
 int main() {
-  const int64 kMaxLogN = 26;
-  FFT::resizeWs(kMaxLogN + 1);
+  const int64 kMaxLogN = 23;
 
-  std::cout << "| #    | MFLOPS    |\n"
-            << "|------|----------:|\n";
+  std::vector<FFTFactoryBase*> factories {
+    new FFTFactory<PMP>,
+    new FFTFactory<CooleyDIF>,
+    // SortedCT,
+    // Stockham,
+    // 6StepCT,
+    // 6StepStockham
+  };
+
+  static constexpr int64 kColumnWidth = 10;
+  std::cout << "| #    |";
+  for (auto* factory : factories)
+    std::cout << std::setw(kColumnWidth) << factory->name() << " |";
+  std::cout << "\n"
+            << "|------|";
+
+  for (auto* factory : factories)
+    std::cout << "----------:|";
+  std::cout << "\n";
+
   for (int64 logn = 2; logn <= kMaxLogN; ++logn) {
-    std::cout << "| 2^" << std::setw(2) << logn << " | ";
+    std::cout << "| 2^" << std::setw(2) << logn << " |";
 
     const int64 n = 1LL << logn;
     std::vector<Complex> data(n);
@@ -27,35 +80,13 @@ int main() {
       data[i] = Complex(2 * i + 1, 2 * i + 2);
     }
 
-    FFT fft(logn);
-    auto start = Clock::now();
-    auto due_time = start + std::chrono::seconds(3);
-    int64 loop_count = 0;
-    for (loop_count = 0; Clock::now() < due_time; ++loop_count) {
-      fft.rft(data.data(), false);
-      fft.rft(data.data(), true);
+    for (auto* factory : factories) {
+      std::unique_ptr<FFT> fft(factory->Create(logn));
+      double mflops = MeasurePerformance(*fft, data);
+      std::cout << std::setw(kColumnWidth) << std::fixed
+                << std::setprecision(3) << mflops << " |";
     }
-    auto end = Clock::now();
-
-    if (n < 256) {
-      bool pass = true;
-      for (int64 i = 0; i < n; ++i) {
-        auto& d = data[i];
-        if (std::abs(d.real - (2 * i + 1)) > 1e-4 ||
-            std::abs(d.imag - (2 * i + 2)) > 1e-4) {
-          std::cerr << i << "/" << n << "\n"
-                    << "Actual: " << d.real << " + " << d.imag << "i\n"
-                    << "Expect: " << (2 * i + 1) << " + " << (2 * i + 2)
-                    << "i\n";
-          pass = false;
-        }
-      }
-      if (!pass)
-        return 0;
-    }
-    auto duration = std::chrono::duration_cast<MS>(end - start).count() * 1e-3;
-    std::cout << std::setw(9) << std::fixed << std::setprecision(3)
-              << fft.getMFlops(duration / loop_count) << " |\n";
+    std::cout << "\n";
   }
 
   return 0;
