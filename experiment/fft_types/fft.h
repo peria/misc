@@ -13,7 +13,11 @@ class FFT {
       
   virtual ~FFT() = default;
   virtual void dft(Complex* x, bool backward) const = 0;
-  virtual double getFlop() const = 0;
+
+  double getFlop() const {
+    double flop = 34 * log4n * n / 4 + 4 * log2n * n / 2;
+    return flop;
+  }
 
  protected:
   const int64 log2n = 0;

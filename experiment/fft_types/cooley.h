@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
 #include <vector>
 
 #include "complex.h"
@@ -14,19 +15,14 @@ class Cooley : public FFT {
   }
   ~Cooley() override = default;
 
+  static const char* name() { return "CT"; }
+
   void dft(Complex* x, bool backward) const override {
     if (backward)
       dft<true>(x);
     else
       dft<false>(x);
   }
-
-  double getFlop() const override {
-    double flop = 34 * log4n * n / 4 + 4 * log2n * n / 2;
-    return flop;
-  }
-
-  static const char* name() { return "CT"; }
 
  private:
   void init();

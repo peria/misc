@@ -1,6 +1,6 @@
 #pragma once
 
-#include <algorithm>
+#include <cmath>
 #include <vector>
 
 #include "complex.h"
@@ -14,19 +14,14 @@ class PMP : public FFT {
   }
   ~PMP() override = default;
 
+  static const char* name() { return "PMP"; }
+
   void dft(Complex* x, bool backward) const override {
     if (backward)
       idft(x);
     else
       dft(x);
   }
-
-  double getFlop() const override {
-    double flop = 34 * log4n * n / 4 + 4 * log2n * n / 2;
-    return flop;
-  }
-
-  static const char* name() { return "PMP"; }
 
  private:
   void init();
