@@ -9,7 +9,7 @@
 class StockhamDIT final : public FFT {
  public:
   StockhamDIT(int64 log2k)
-    : FFT(log2k) {
+    : FFT(log2k % 2, log2k / 2) {
     init();
   }
   ~StockhamDIT() override = default;
@@ -31,9 +31,20 @@ class StockhamDIT final : public FFT {
     Complex* x = a;
     Complex* y = const_cast<Complex*>(work.data());
     const Complex* pw = ws.data();
-    for (int64 l = 1, m = n / 2; l < n; l *= 2, m /= 2) {
-      dft2<backward>(x, y, l, m, pw);
+    int64 l = 1;
+    int64 m = n;
+    for (int64 i = 0; i < log4n; ++i) {
+      m /= 4;
+      dft4<backward>(x, y, l, m, pw);
+      pw += m * 3;
+      l *= 4;
+      std::swap(x, y);
+    }
+    for (int64 i = 0; i < log2n; ++i) {
+      m /= 2;
+      dft2(x, y, l, m);
       pw += m;
+      l *= 2;
       std::swap(x, y);
     }
     if (x != a) {
@@ -49,19 +60,70 @@ class StockhamDIT final : public FFT {
     }
   };
 
-  template <bool backward>
-  void dft2(Complex* x, Complex* y, const int64 l, const int64 m, const Complex* pw) const {
+  void dft2(Complex* x, Complex* y, const int64 l, const int64 m) const {
     for (int64 k = 0; k < m; ++k) {
-      Complex w = backward ? pw[k].conj() : pw[k];
       for (int64 j = 0; j < l; ++j) {
-        int64 ix0 = k * l + j;
-        int64 ix1 = ix0 + l * m;
-        int64 iy0 = k * 2 * l + j;
-        int64 iy1 = iy0 + l;
+        int64 i0 = j;
+        int64 i1 = j + l;
+        Complex x0 = x[i0];
+        Complex x1 = x[i1];
+        y[i0] = x0 + x1;
+        y[i1] = x0 - x1;
+      }
+    }
+  };
+
+  template <bool backward>
+  void dft4(Complex* x, Complex* y, const int64 l, const int64 m, const Complex* pw) const {
+    {
+      for (int64 j = 0; j < l; ++j) {
+        int64 ix0 = j;
+        int64 ix1 = l + j;
+        int64 ix2 = 2 * l + j;
+        int64 ix3 = 3 * l + j;
+        int64 iy0 = j;
+        int64 iy1 = l + j;
+        int64 iy2 = 2 * l + j;
+        int64 iy3 = 3 * l + j;
         Complex x0 = x[ix0];
         Complex x1 = x[ix1];
-        y[iy0] = x0 + x1;
-        y[iy1] = (x0 - x1) * w;
+        Complex x2 = x[ix2];
+        Complex x3 = x[ix3];
+        Complex b0 = x0 + x2;
+        Complex b1 = x1 + x3;
+        Complex b2 = x0 - x2;
+        Complex b3 = (x3 - x1).i();
+        y[iy0] = b0 + b1;
+        y[iy1] = b0 - b1;
+        y[iy2] = b2 + b3;
+        y[iy3] = b2 - b3;
+      }
+    }
+    for (int64 k = 1; k < m; ++k) {
+      Complex w1 = backward ? pw[k * 3].conj() : pw[k * 3];
+      Complex w2 = backward ? pw[k * 3 + 1].conj() : pw[k * 3 + 1];
+      Complex w3 = backward ? pw[k * 3 + 2].conj() : pw[k * 3 + 2];
+      for (int64 j = 0; j < l; ++j) {
+        int64 ix0 = k * l + j;
+        int64 ix1 = (k + m) * l + j;
+        int64 ix2 = (k + m * 2) * l + j;
+        int64 ix3 = (k + m * 3) * l + j;
+        int64 iy0 = k * 4 * l + j;
+        int64 iy1 = (k * 4 + 1) * l + j;
+        int64 iy2 = (k * 4 + 2) * l + j;
+        int64 iy3 = (k * 4 + 3) * l + j;
+        Complex x0 = x[ix0];
+        Complex x1 = x[ix1];
+        Complex x2 = x[ix2];
+        Complex x3 = x[ix3];
+        Complex b0 = x0 + x2;
+        Complex b1 = x1 + x3;
+        Complex b2 = x0 - x2;
+        Complex b3 = (x3 - x1).i();
+        y[iy0] = b0 + b1;
+        y[iy1] = (b0 - b1) * w2;
+        y[iy2] = (b2 + b3) * w1;
+        y[iy3] = (b2 - b3) * w3;
       }
     }
   };
@@ -75,12 +137,14 @@ void StockhamDIT::init() {
   int64 l = 1;
   int64 m = n;
   const double theta = -2 * M_PI / n;
-  for (int64 i = 0; i < log2n; ++i) {
-    m /= 2;
+  for (int64 i = 0; i < log4n; ++i) {
+    m /= 4;
     for (int k = 0; k < m; ++k) {
       const double t = theta * l * k;
       ws.push_back(Complex {std::cos(t), std::sin(t)});
+      ws.push_back(Complex {std::cos(2*t), std::sin(2*t)});
+      ws.push_back(Complex {std::cos(3*t), std::sin(3*t)});
     }
-    l *= 2;
+    l *= 4;
   }
 }
