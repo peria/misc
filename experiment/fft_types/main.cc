@@ -14,7 +14,7 @@ using Clock = std::chrono::system_clock;
 using MS = std::chrono::milliseconds;
 
 double MeasurePerformance(const FFT& fft, std::vector<Complex>& data);
-bool Verify(const std::vector<Complex>& data);
+bool Verify(const FFT& fft);
 
 int main() {
   const int64 kMaxLogN = 23;
@@ -23,7 +23,7 @@ int main() {
     new FFTFactory<PMP>,
     new FFTFactory<Cooley>,
     new FFTFactory<StockhamDIT>,
-    new FFTFactory<StockhamDIF>,
+    // new FFTFactory<StockhamDIF>, // TODO: Fix
   };
 
   static constexpr int64 kColumnWidth = 10;
@@ -42,12 +42,12 @@ int main() {
 
     const int64 n = 1LL << logn;
     std::vector<Complex> data(n);
-    for (int64 i = 0; i < n; ++i) {
-      data[i] = Complex(2 * i + 1, 2 * i + 2);
-    }
-
+    for (int64 i = 0; i < n; ++i)
+      data[i] = Complex(2 * i, 2 * i + 1);
     for (auto* factory : factories) {
       std::unique_ptr<FFT> fft(factory->Create(logn));
+      if (!Verify(*fft))
+        return 0;
       double mflops = MeasurePerformance(*fft, data);
       std::cout << std::setw(kColumnWidth) << std::fixed
                 << std::setprecision(3) << mflops << " |";
@@ -76,22 +76,34 @@ double MeasurePerformance(const FFT& fft, std::vector<Complex>& data) {
   return flop / average * 1e-6;
 }
 
-bool Verify(const std::vector<Complex>& data) {
-  const int64 n = data.size();
+bool Verify(const FFT& fft) {
+  static constexpr double kEPS = 1e-4;
+
+  const int64 n = fft.size();
   // Do not check
   if (n >= 256)
     return true;
 
-  bool pass = true;
-  static constexpr double kEPS = 1e-4;
+  std::vector<Complex> x(n);
   for (int64 i = 0; i < n; ++i) {
-    auto& d = data[i];
-    if (std::abs(d.real - (2 * i + 1)) > kEPS ||
-        std::abs(d.imag - (2 * i + 2)) > kEPS) {
-      std::cerr << i << "/" << n << "\n"
+    x[i] = Complex(2 * i + 1, 2 * i + 2);
+  }
+  fft.dft(x.data(), false);
+  // for (int64 i = 0; i < n; ++i) {
+  //   std::cerr << x[i].real << " + " << x[i].imag << "i\n";
+  // }
+  // std::cerr << "\n";
+  fft.dft(x.data(), true);
+  bool pass = true;
+  for (int64 i = 0; i < n; ++i) {
+    auto& d = x[i];
+    const double er = 2 * i + 1;
+    const double ei = 2 * i + 2;
+    if (std::abs(d.real - er) > kEPS ||
+        std::abs(d.imag - ei) > kEPS) {
+      std::cerr << "Fail at " << i << "/" << n << "\n"
                 << "Actual: " << d.real << " + " << d.imag << "i\n"
-                << "Expect: " << (2 * i + 1) << " + " << (2 * i + 2)
-                << "i\n";
+                << "Expect: " << er << " + " << ei << "i\n";
       pass = false;
     }
   }

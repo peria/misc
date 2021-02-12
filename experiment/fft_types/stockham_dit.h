@@ -42,14 +42,12 @@ class StockhamDIT final : public FFT {
     }
     {
       m /= 4;
-      dft4<backward>(x, a, l, m, pw);
-      pw += m * 3;
+      dft4<backward>(x, log2n ? y : a, l, m, pw);
       l *= 4;
     }
     if (log2n) {
       m /= 2;
-      dft2(a, a, l);
-      pw += m;
+      dft2(y, a, l);
       l *= 2;
     }
     if (backward) {
@@ -75,22 +73,26 @@ class StockhamDIT final : public FFT {
   void dft4(Complex* x, Complex* y, const int64 l, const int64 m, const Complex* pw) const {
     {
       for (int64 j = 0; j < l; ++j) {
-        int64 i0 = j;
-        int64 i1 = l + j;
-        int64 i2 = 2 * l + j;
-        int64 i3 = 3 * l + j;
-        Complex x0 = x[i0];
-        Complex x1 = x[i1];
-        Complex x2 = x[i2];
-        Complex x3 = x[i3];
+        int64 ix0 = j;
+        int64 ix1 = m * l + j;
+        int64 ix2 = m * 2 * l + j;
+        int64 ix3 = m * 3 * l + j;
+        int64 iy0 = j;
+        int64 iy1 = l + j;
+        int64 iy2 = 2 * l + j;
+        int64 iy3 = 3 * l + j;
+        Complex x0 = x[ix0];
+        Complex x1 = x[ix1];
+        Complex x2 = x[ix2];
+        Complex x3 = x[ix3];
         Complex b0 = x0 + x2;
         Complex b1 = x1 + x3;
         Complex b2 = x0 - x2;
         Complex b3 = (x3 - x1).i();
-        y[i0] = b0 + b1;
-        y[i1] = b0 - b1;
-        y[i2] = b2 + b3;
-        y[i3] = b2 - b3;
+        y[iy0] = b0 + b1;
+        y[iy1] = backward ? (b2 - b3) : (b2 + b3);
+        y[iy2] = b0 - b1;
+        y[iy3] = backward ? (b2 + b3) : (b2 - b3);
       }
     }
     for (int64 k = 1; k < m; ++k) {
@@ -102,10 +104,10 @@ class StockhamDIT final : public FFT {
         int64 ix1 = (k + m) * l + j;
         int64 ix2 = (k + m * 2) * l + j;
         int64 ix3 = (k + m * 3) * l + j;
-        int64 iy0 = k * 4 * l + j;
-        int64 iy1 = (k * 4 + 1) * l + j;
-        int64 iy2 = (k * 4 + 2) * l + j;
-        int64 iy3 = (k * 4 + 3) * l + j;
+        int64 iy0 = 4 * k * l + j;
+        int64 iy1 = (4 * k + 1) * l + j;
+        int64 iy2 = (4 * k + 2) * l + j;
+        int64 iy3 = (4 * k + 3) * l + j;
         Complex x0 = x[ix0];
         Complex x1 = x[ix1];
         Complex x2 = x[ix2];
@@ -115,9 +117,9 @@ class StockhamDIT final : public FFT {
         Complex b2 = x0 - x2;
         Complex b3 = (x3 - x1).i();
         y[iy0] = b0 + b1;
-        y[iy1] = (b0 - b1) * w2;
-        y[iy2] = (b2 + b3) * w1;
-        y[iy3] = (b2 - b3) * w3;
+        y[iy1] = (backward ? (b2 - b3) : (b2 + b3)) * w1;
+        y[iy2] = (b0 - b1) * w2;
+        y[iy3] = (backward ? (b2 + b3) : (b2 - b3)) * w3;
       }
     }
   };

@@ -82,8 +82,8 @@ class Cooley : public FFT {
         Complex b3 = (a3 - a1).i();
         a[k0] = b0 + b1;
         a[k1] = b0 - b1;
-        a[k2] = b2 + b3;
-        a[k3] = b2 - b3;
+        a[k2] = backward ? (b2 - b3) : (b2 + b3);
+        a[k3] = backward ? (b2 + b3) : (b2 - b3);
       }
       for (int64 k = 1; k < m; ++k) {
         Complex w1 = backward ? ws[k * 3].conj() : ws[k * 3];
@@ -103,8 +103,8 @@ class Cooley : public FFT {
         Complex b3 = (a3 - a1).i();
         a[i0] = b0 + b1;
         a[i1] = (b0 - b1) * w2;
-        a[i2] = (b2 + b3) * w1;
-        a[i3] = (b2 - b3) * w3;
+        a[i2] = (backward ? (b2 - b3) : (b2 + b3)) * w1;
+        a[i3] = (backward ? (b2 + b3) : (b2 - b3)) * w3;
       }
     }
   }
@@ -146,6 +146,7 @@ void Cooley::init() {
 }
 
 void Cooley::sort(Complex* a) const {
+#if 0
   int64 log_half = logn / 2;
   int64 m = 1LL << log_half;
   if (logn % 2 == 0) {
@@ -166,4 +167,39 @@ void Cooley::sort(Complex* a) const {
       }
     }
   }
+#else
+  int i, ij, j, ji, k, m;
+  /* ---- initialization ---- */
+  k = n;
+  m = 1;
+  while (2 * m < k) {
+    k = k / 2;
+    m = m * 2;
+  }
+  /* ---- scramble ---- */
+  if (m == k) {
+    for (i = 1; i < m; i++) {
+      for (j = 0; j < i; j++) {
+        ji = j + ip[i];
+        ij = i + ip[j];
+        auto tmp = a[ji];
+        a[ji] = a[ij];
+        a[ij] = tmp;
+      }
+    }
+  } else {
+    for (i = 1; i < m; i++) {
+      for (j = 0; j < i; j++) {
+        ji = j + ip[i];
+        ij = i + ip[j];
+        auto tmp = a[ji];
+        a[ji] = a[ij];
+        a[ij] = tmp;
+        tmp = a[ji + m];
+        a[ji + m] = a[ij + m];
+        a[ij + m] = tmp;
+      }
+    }
+  }
+#endif
 }

@@ -7,7 +7,7 @@ HEADS=fft.h complex.h
 HEADS+=pmp.h
 HEADS+=cooley.h
 HEADS+=stockham_dit.h
-# stockham_dif.h
+HEADS+=stockham_dif.h
 
 all: run
 

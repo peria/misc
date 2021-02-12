@@ -19,6 +19,8 @@ class FFT {
     return flop;
   }
 
+  int64 size() const { return n; }
+
  protected:
   const int64 log2n = 0;
   const int64 log4n = 0;

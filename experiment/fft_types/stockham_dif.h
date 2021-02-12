@@ -33,23 +33,23 @@ class StockhamDIF final : public FFT {
     const Complex* pw = ws.data();
     int64 l = 1;
     int64 m = n;
-    for (int64 i = 0; i < log4n - 1; ++i) {
+    for (int64 i = 0; i < log4n; ++i) {
       m /= 4;
       dft4<backward>(x, y, l, m, pw);
-      pw += m;
+      pw += m * 3;
       l *= 4;
       std::swap(x, y);
     }
-    {
-      m /= 4;
-      dft4<backward>(x, a, l, m, pw);
-      pw += m;
-      l *= 4;
-    }
     if (log2n) {
       m /= 2;
-      dft2(a, a, l);
+      dft2(x, y, l);
       l *= 2;
+      std::swap(x, y);
+    }
+    if (x != a) {
+      for (int i = 0; i < n; ++i) {
+        a[i] = x[i];
+      }
     }
     if (backward) {
       double inv = 1.0 / n;
@@ -72,7 +72,7 @@ class StockhamDIF final : public FFT {
 
   template <bool backward>
   void dft4(Complex* x, Complex* y, const int64 l, const int64 m, const Complex* pw) const {
-    {
+    if (false) {
       for (int64 j = 0; j < l; ++j) {
         int64 ix0 = j;
         int64 ix1 = l + j;
@@ -91,12 +91,12 @@ class StockhamDIF final : public FFT {
         Complex b2 = x0 - x2;
         Complex b3 = (x1 - x3).i();
         y[iy0] = b0 + b1;
-        y[iy1] = b2 - b3;
+        y[iy1] = backward ? (b2 + b3) : (b2 - b3);
         y[iy2] = b0 - b1;
-        y[iy3] = b2 + b3;
+        y[iy3] = backward ? (b2 - b3) : (b2 + b3);
       }
     }
-    for (int64 k = 1; k < m; ++k) {
+    for (int64 k = 0; k < m; ++k) {
       Complex w1 = backward ? pw[3 * k].conj() : pw[3 * k];
       Complex w2 = backward ? pw[3 * k + 1].conj() : pw[3 * k + 1];
       Complex w3 = backward ? pw[3 * k + 2].conj() : pw[3 * k + 2];
@@ -118,9 +118,9 @@ class StockhamDIF final : public FFT {
         Complex b2 = x0 - x2;
         Complex b3 = (x1 - x3).i();
         y[iy0] = b0 + b1;
-        y[iy1] = b2 - b3;
+        y[iy1] = backward ? (b2 + b3) : (b2 - b3);
         y[iy2] = b0 - b1;
-        y[iy3] = b2 + b3;
+        y[iy3] = backward ? (b2 - b3) : (b2 + b3);
       }
     }
   }
