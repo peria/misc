@@ -69,9 +69,9 @@ class Cooley : public FFT {
     for (int64 j = 0; j < l; ++j) {
       {
         int64 k0 = 4 * j * m;
-        int64 k1 = 4 * j * m + m;
-        int64 k2 = 4 * j * m + 2 * m;
-        int64 k3 = 4 * j * m + 3 * m;
+        int64 k1 = (4 * j + 1) * m;
+        int64 k2 = (4 * j + 2) * m;
+        int64 k3 = (4 * j + 3) * m;
         Complex a0 = a[k0];
         Complex a1 = a[k1];
         Complex a2 = a[k2];
@@ -90,9 +90,9 @@ class Cooley : public FFT {
         Complex w2 = backward ? ws[k * 3 + 1].conj() : ws[k * 3 + 1];
         Complex w3 = backward ? ws[k * 3 + 2].conj() : ws[k * 3 + 2];
         int64 i0 = 4 * j * m + k;
-        int64 i1 = 4 * j * m + m + k;
-        int64 i2 = 4 * j * m + 2 * m + k;
-        int64 i3 = 4 * j * m + 3 * m + k;
+        int64 i1 = (4 * j + 1) * m + k;
+        int64 i2 = (4 * j + 2) * m + k;
+        int64 i3 = (4 * j + 3) * m + k;
         Complex a0 = a[i0];
         Complex a1 = a[i1];
         Complex a2 = a[i2];
@@ -146,10 +146,10 @@ void Cooley::init() {
 }
 
 void Cooley::sort(Complex* a) const {
-  int64 l = 1;
-  int64 m = n;
-  if (l == m) {
-    for (int64 i = 1; i < l; ++i) {
+  int64 log_half = logn / 2;
+  int64 m = 1LL << log_half;
+  if (logn % 2 == 0) {
+    for (int64 i = 1; i < m; ++i) {
       for (int64 j = 0; j < i; ++j) {
         int64 ji = j + ip[i];
         int64 ij = i + ip[j];
@@ -157,12 +157,12 @@ void Cooley::sort(Complex* a) const {
       }
     }
   } else {
-    for (int64 i = 1; i < l; ++i) {
+    for (int64 i = 1; i < m; ++i) {
       for (int64 j = 0; j < i; ++j) {
         int64 ji = j + ip[i];
         int64 ij = i + ip[j];
         std::swap(a[ji], a[ij]);
-        std::swap(a[ji + l], a[ij + l]);
+        std::swap(a[ji + m], a[ij + m]);
       }
     }
   }
