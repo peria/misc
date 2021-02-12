@@ -28,6 +28,7 @@ struct Complex {
   }
   Complex i() const { return Complex{-imag, real}; }
   Complex conj() const { return Complex{real, -imag}; }
+  Complex tran() const { return Complex{imag, real}; }
 
   double real = 0;
   double imag = 0;

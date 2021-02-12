@@ -89,22 +89,22 @@ class Cooley : public FFT {
         Complex w1 = backward ? ws[k * 3].conj() : ws[k * 3];
         Complex w2 = backward ? ws[k * 3 + 1].conj() : ws[k * 3 + 1];
         Complex w3 = backward ? ws[k * 3 + 2].conj() : ws[k * 3 + 2];
-        int64 k0 = 4 * j * m + k;
-        int64 k1 = 4 * j * m + m + k;
-        int64 k2 = 4 * j * m + 2 * m + k;
-        int64 k3 = 4 * j * m + 3 * m + k;
-        Complex a0 = a[k0];
-        Complex a1 = a[k1];
-        Complex a2 = a[k2];
-        Complex a3 = a[k3];
+        int64 i0 = 4 * j * m + k;
+        int64 i1 = 4 * j * m + m + k;
+        int64 i2 = 4 * j * m + 2 * m + k;
+        int64 i3 = 4 * j * m + 3 * m + k;
+        Complex a0 = a[i0];
+        Complex a1 = a[i1];
+        Complex a2 = a[i2];
+        Complex a3 = a[i3];
         Complex b0 = a0 + a2;
         Complex b1 = a1 + a3;
         Complex b2 = a0 - a2;
         Complex b3 = (a3 - a1).i();
-        a[k0] = b0 + b1;
-        a[k1] = (b0 - b1) * w2;
-        a[k2] = (b2 + b3) * w1;
-        a[k3] = (b2 - b3) * w3;
+        a[i0] = b0 + b1;
+        a[i1] = (b0 - b1) * w2;
+        a[i2] = (b2 + b3) * w1;
+        a[i3] = (b2 - b3) * w3;
       }
     }
   }
