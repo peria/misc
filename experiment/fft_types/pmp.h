@@ -38,7 +38,7 @@ class PMP : public FFT {
     }
     for (int64 i = 0; i < log2n; ++i) {
       m /= 2;
-      dft2(a, l, m);
+      dft2(a, l);
       l *= 2;
     }
   }
@@ -49,7 +49,7 @@ class PMP : public FFT {
     int64 m = 1;
     if (log2n) {
       l /= 2;
-      dft2(a, l, m);
+      dft2(a, l);
       m *= 2;
     }
     for (int64 i = 0; i < log4n; ++i) {
@@ -63,7 +63,7 @@ class PMP : public FFT {
       a[i] *= inv;
   }
 
-  void dft2(Complex* a, const int64 l, const int64 m) const {
+  void dft2(Complex* a, const int64 l) const {
     for (int64 j = 0; j < l; ++j) {
       int64 k0 = 2 * j;
       int64 k1 = 2 * j + 1;

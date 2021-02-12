@@ -24,8 +24,6 @@ int main() {
     new FFTFactory<Cooley>,
     new FFTFactory<StockhamDIT>,
     new FFTFactory<StockhamDIF>,
-    // 6StepCT,
-    // 6StepStockham
   };
 
   static constexpr int64 kColumnWidth = 10;
@@ -62,11 +60,12 @@ int main() {
 
 double MeasurePerformance(const FFT& fft, std::vector<Complex>& data) {
   static constexpr int64 kTimeLimitSec = 2;
+  static constexpr int64 kMaxLoopCount = 10000000;
 
   auto start = Clock::now();
   auto due_time = start + std::chrono::seconds(kTimeLimitSec);
   int64 loop_count = 0;
-  for (loop_count = 0; loop_count < 1e+7 && Clock::now() < due_time; ++loop_count) {
+  for (loop_count = 0; loop_count < kMaxLoopCount && Clock::now() < due_time; ++loop_count) {
     fft.dft(data.data(), false);
     fft.dft(data.data(), true);
   }

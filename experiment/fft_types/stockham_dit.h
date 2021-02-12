@@ -48,7 +48,7 @@ class StockhamDIT final : public FFT {
     }
     if (log2n) {
       m /= 2;
-      dft2(a, a, l, m);
+      dft2(a, a, l);
       pw += m;
       l *= 2;
     }
@@ -60,16 +60,14 @@ class StockhamDIT final : public FFT {
     }
   };
 
-  void dft2(Complex* x, Complex* y, const int64 l, const int64 m) const {
-    for (int64 k = 0; k < m; ++k) {
-      for (int64 j = 0; j < l; ++j) {
-        int64 i0 = j;
-        int64 i1 = j + l;
-        Complex x0 = x[i0];
-        Complex x1 = x[i1];
-        y[i0] = x0 + x1;
-        y[i1] = x0 - x1;
-      }
+  void dft2(Complex* x, Complex* y, const int64 l) const {
+    for (int64 j = 0; j < l; ++j) {
+      int64 i0 = j;
+      int64 i1 = j + l;
+      Complex x0 = x[i0];
+      Complex x1 = x[i1];
+      y[i0] = x0 + x1;
+      y[i1] = x0 - x1;
     }
   };
 

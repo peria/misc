@@ -41,7 +41,7 @@ class Cooley : public FFT {
     }
     for (int64 i = 0; i < log2n; ++i) {
       m /= 2;
-      dft2(a, l, m);
+      dft2(a, l);
       l *= 2;
     }
     sort(a);
@@ -53,7 +53,7 @@ class Cooley : public FFT {
     }
   }
 
-  void dft2(Complex* a, const int64 l, const int64 m) const {
+  void dft2(Complex* a, const int64 l) const {
     for (int64 j = 0; j < l; ++j) {
       int64 k0 = 2 * j;
       int64 k1 = 2 * j + 1;
