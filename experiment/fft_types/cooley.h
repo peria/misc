@@ -146,7 +146,6 @@ void Cooley::init() {
 }
 
 void Cooley::sort(Complex* a) const {
-#if 0
   int64 log_half = logn / 2;
   int64 m = 1LL << log_half;
   if (logn % 2 == 0) {
@@ -167,39 +166,4 @@ void Cooley::sort(Complex* a) const {
       }
     }
   }
-#else
-  int i, ij, j, ji, k, m;
-  /* ---- initialization ---- */
-  k = n;
-  m = 1;
-  while (2 * m < k) {
-    k = k / 2;
-    m = m * 2;
-  }
-  /* ---- scramble ---- */
-  if (m == k) {
-    for (i = 1; i < m; i++) {
-      for (j = 0; j < i; j++) {
-        ji = j + ip[i];
-        ij = i + ip[j];
-        auto tmp = a[ji];
-        a[ji] = a[ij];
-        a[ij] = tmp;
-      }
-    }
-  } else {
-    for (i = 1; i < m; i++) {
-      for (j = 0; j < i; j++) {
-        ji = j + ip[i];
-        ij = i + ip[j];
-        auto tmp = a[ji];
-        a[ji] = a[ij];
-        a[ij] = tmp;
-        tmp = a[ji + m];
-        a[ji + m] = a[ij + m];
-        a[ij + m] = tmp;
-      }
-    }
-  }
-#endif
 }
