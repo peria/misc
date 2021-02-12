@@ -31,25 +31,29 @@ class StockhamDIF final : public FFT {
     Complex* x = a;
     Complex* y = const_cast<Complex*>(work.data());
     const Complex* pw = ws.data();
-    int64 l = 1;
-    int64 m = n;
-    for (int64 i = 0; i < log4n; ++i) {
-      m /= 4;
-      dft4<backward>(x, y, l, m, pw);
-      pw += m * 3;
-      l *= 4;
+    int64 l = n;
+    int64 m = 1;
+    if (log4n % 2) {
       std::swap(x, y);
     }
     if (log2n) {
-      m /= 2;
-      dft2(x, y, l);
-      l *= 2;
+      l /= 2;
+      dft2(a, x, l);
+      m *= 2;
+    }
+    {
+      l /= 4;
+      dft4<backward>(log2n ? x : a, y, l, m, pw);
+      pw += m * 3;
+      m *= 4;
       std::swap(x, y);
     }
-    if (x != a) {
-      for (int i = 0; i < n; ++i) {
-        a[i] = x[i];
-      }
+    for (int64 i = 1; i < log4n; ++i) {
+      l /= 4;
+      dft4<backward>(x, y, l, m, pw);
+      pw += m * 3;
+      m *= 4;
+      std::swap(x, y);
     }
     if (backward) {
       double inv = 1.0 / n;
@@ -72,7 +76,7 @@ class StockhamDIF final : public FFT {
 
   template <bool backward>
   void dft4(Complex* x, Complex* y, const int64 l, const int64 m, const Complex* pw) const {
-    if (false) {
+    {
       for (int64 j = 0; j < l; ++j) {
         int64 ix0 = j;
         int64 ix1 = l + j;
@@ -96,7 +100,7 @@ class StockhamDIF final : public FFT {
         y[iy3] = backward ? (b2 - b3) : (b2 + b3);
       }
     }
-    for (int64 k = 0; k < m; ++k) {
+    for (int64 k = 1; k < m; ++k) {
       Complex w1 = backward ? pw[3 * k].conj() : pw[3 * k];
       Complex w2 = backward ? pw[3 * k + 1].conj() : pw[3 * k + 1];
       Complex w3 = backward ? pw[3 * k + 2].conj() : pw[3 * k + 2];
@@ -131,17 +135,21 @@ class StockhamDIF final : public FFT {
 
 void StockhamDIF::init() {
   work.resize(n);
-  int64 l = 1;
-  int64 m = n;
+  int64 l = n;
+  int64 m = 1;
   const double theta = -2 * M_PI / n;
+  if (log2n) {
+    l /= 2;
+    m *= 2;
+  }
   for (int64 i = 0; i < log4n; ++i) {
-    m /= 4;
+    l /= 4;
     for (int64 k = 0; k < m; ++k) {
       double t = theta * l * k;
       ws.push_back(Complex {std::cos(t), std::sin(t)});
       ws.push_back(Complex {std::cos(2*t), std::sin(2*t)});
       ws.push_back(Complex {std::cos(3*t), std::sin(3*t)});
     }
-    l *= 4;
+    m *= 4;
   }
 };

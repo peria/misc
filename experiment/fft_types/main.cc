@@ -23,7 +23,7 @@ int main() {
     new FFTFactory<PMP>,
     new FFTFactory<Cooley>,
     new FFTFactory<StockhamDIT>,
-    // new FFTFactory<StockhamDIF>, // TODO: Fix
+    new FFTFactory<StockhamDIF>,
   };
 
   static constexpr int64 kColumnWidth = 10;
