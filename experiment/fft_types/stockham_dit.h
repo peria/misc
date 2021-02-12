@@ -135,7 +135,7 @@ void StockhamDIT::init() {
   const double theta = -2 * M_PI / n;
   for (int64 i = 0; i < log4n; ++i) {
     m /= 4;
-    for (int k = 0; k < m; ++k) {
+    for (int64 k = 0; k < m; ++k) {
       const double t = theta * l * k;
       ws.push_back(Complex {std::cos(t), std::sin(t)});
       ws.push_back(Complex {std::cos(2*t), std::sin(2*t)});

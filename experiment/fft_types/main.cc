@@ -8,6 +8,7 @@
 #include "cooley.h"
 #include "pmp.h"
 #include "stockham_dit.h"
+#include "stockham_dif.h"
 
 using Clock = std::chrono::system_clock;
 using MS = std::chrono::milliseconds;
@@ -22,6 +23,7 @@ int main() {
     new FFTFactory<PMP>,
     new FFTFactory<Cooley>,
     new FFTFactory<StockhamDIT>,
+    new FFTFactory<StockhamDIF>,
     // 6StepCT,
     // 6StepStockham
   };
