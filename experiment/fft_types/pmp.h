@@ -65,55 +65,55 @@ class PMP : public FFT {
 
   void dft2(Complex* a, const int64 l) const {
     for (int64 j = 0; j < l; ++j) {
-      int64 k0 = 2 * j;
-      int64 k1 = 2 * j + 1;
-      Complex a0 = a[k0];
-      Complex a1 = a[k1];
-      a[k0] = a0 + a1;
-      a[k1] = a0 - a1;
+      int64 i0 = 2 * j;
+      int64 i1 = 2 * j + 1;
+      Complex a0 = a[i0];
+      Complex a1 = a[i1];
+      a[i0] = a0 + a1;
+      a[i1] = a0 - a1;
     }
   }
 
   void dft4(Complex* a, const int64 l, const int64 m, const Complex* ws) const {
     for (int64 j = 0; j < l; ++j) {
       {
-        int64 k0 = 4 * j * m;
-        int64 k1 = 4 * j * m + m;
-        int64 k2 = 4 * j * m + 2 * m;
-        int64 k3 = 4 * j * m + 3 * m;
-        Complex a0 = a[k0];
-        Complex a1 = a[k1];
-        Complex a2 = a[k2];
-        Complex a3 = a[k3];
+        int64 i0 = 4 * j * m;
+        int64 i1 = 4 * j * m + m;
+        int64 i2 = 4 * j * m + 2 * m;
+        int64 i3 = 4 * j * m + 3 * m;
+        Complex a0 = a[i0];
+        Complex a1 = a[i1];
+        Complex a2 = a[i2];
+        Complex a3 = a[i3];
         Complex b0 = a0 + a2;
         Complex b1 = a1 + a3;
         Complex b2 = a0 - a2;
         Complex b3 = (a3 - a1).i();
-        a[k0] = b0 + b1;
-        a[k1] = b0 - b1;
-        a[k2] = b2 + b3;
-        a[k3] = b2 - b3;
+        a[i0] = b0 + b1;
+        a[i1] = b0 - b1;
+        a[i2] = b2 + b3;
+        a[i3] = b2 - b3;
       }
       for (int64 k = 1; k < m; ++k) {
         Complex w1 = ws[k * 3];
         Complex w2 = ws[k * 3 + 1];
         Complex w3 = ws[k * 3 + 2];
-        int64 k0 = 4 * j * m + k;
-        int64 k1 = 4 * j * m + m + k;
-        int64 k2 = 4 * j * m + 2 * m + k;
-        int64 k3 = 4 * j * m + 3 * m + k;
-        Complex a0 = a[k0];
-        Complex a1 = a[k1];
-        Complex a2 = a[k2];
-        Complex a3 = a[k3];
+        int64 i0 = 4 * j * m + k;
+        int64 i1 = 4 * j * m + m + k;
+        int64 i2 = 4 * j * m + 2 * m + k;
+        int64 i3 = 4 * j * m + 3 * m + k;
+        Complex a0 = a[i0];
+        Complex a1 = a[i1];
+        Complex a2 = a[i2];
+        Complex a3 = a[i3];
         Complex b0 = a0 + a2;
         Complex b1 = a1 + a3;
         Complex b2 = a0 - a2;
         Complex b3 = (a3 - a1).i();
-        a[k0] = b0 + b1;
-        a[k1] = (b0 - b1) * w2;
-        a[k2] = (b2 + b3) * w1;
-        a[k3] = (b2 - b3) * w3;
+        a[i0] = b0 + b1;
+        a[i1] = (b0 - b1) * w2;
+        a[i2] = (b2 + b3) * w1;
+        a[i3] = (b2 - b3) * w3;
       }
     }
   }
@@ -121,43 +121,43 @@ class PMP : public FFT {
   void idft4(Complex* a, const int64 l, const int64 m, const Complex* ws) const {
     for (int64 j = 0; j < l; ++j) {
       {
-        int64 k0 = 4 * j * m;
-        int64 k1 = 4 * j * m + m;
-        int64 k2 = 4 * j * m + 2 * m;
-        int64 k3 = 4 * j * m + 3 * m;
-        Complex a0 = a[k0];
-        Complex a1 = a[k1];
-        Complex a2 = a[k2];
-        Complex a3 = a[k3];
+        int64 i0 = 4 * j * m;
+        int64 i1 = 4 * j * m + m;
+        int64 i2 = 4 * j * m + 2 * m;
+        int64 i3 = 4 * j * m + 3 * m;
+        Complex a0 = a[i0];
+        Complex a1 = a[i1];
+        Complex a2 = a[i2];
+        Complex a3 = a[i3];
         Complex b0 = a0 + a1;
         Complex b1 = a0 - a1;
         Complex b2 = a2 + a3;
         Complex b3 = (a2 - a3).i();
-        a[k0] = b0 + b2;
-        a[k1] = b1 + b3;
-        a[k2] = b0 - b2;
-        a[k3] = b1 - b3;
+        a[i0] = b0 + b2;
+        a[i1] = b1 + b3;
+        a[i2] = b0 - b2;
+        a[i3] = b1 - b3;
       }
       for (int64 k = 1; k < m; ++k) {
         Complex w1 = ws[3 * k].conj();
         Complex w2 = ws[3 * k + 1].conj();
         Complex w3 = ws[3 * k + 2].conj();
-        int64 k0 = 4 * j * m + k;
-        int64 k1 = 4 * j * m + m + k;
-        int64 k2 = 4 * j * m + 2 * m + k;
-        int64 k3 = 4 * j * m + 3 * m + k;
-        Complex a0 = a[k0];
-        Complex a1 = a[k1] * w2;
-        Complex a2 = a[k2] * w1;
-        Complex a3 = a[k3] * w3;
+        int64 i0 = 4 * j * m + k;
+        int64 i1 = 4 * j * m + m + k;
+        int64 i2 = 4 * j * m + 2 * m + k;
+        int64 i3 = 4 * j * m + 3 * m + k;
+        Complex a0 = a[i0];
+        Complex a1 = a[i1] * w2;
+        Complex a2 = a[i2] * w1;
+        Complex a3 = a[i3] * w3;
         Complex b0 = a0 + a1;
         Complex b1 = a0 - a1;
         Complex b2 = a2 + a3;
         Complex b3 = (a2 - a3).i();
-        a[k0] = b0 + b2;
-        a[k1] = b1 + b3;
-        a[k2] = b0 - b2;
-        a[k3] = b1 - b3;
+        a[i0] = b0 + b2;
+        a[i1] = b1 + b3;
+        a[i2] = b0 - b2;
+        a[i3] = b1 - b3;
       }
     }
   }
