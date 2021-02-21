@@ -6,26 +6,26 @@
 class FFT {
  public:
   FFT(int64 log2n, int64 log4n=0)
-    : log2n(log2n),
-      log4n(log4n),
-      logn(log2n + log4n * 2),
-      n(1LL << (log2n + log4n * 2)) {}
+    : log2n_(log2n),
+      log4n_(log4n),
+      logn_(log2n_ + log4n_ * 2),
+      n_(1LL << (logn_)) {}
       
   virtual ~FFT() = default;
   virtual void dft(Complex* x, bool backward) const = 0;
 
   double getFlop() const {
-    double flop = 34 * log4n * n / 4 + 4 * log2n * n / 2;
+    double flop = 34 * log4n_ * n_ / 4 + 4 * log2n_ * n_ / 2;
     return flop;
   }
 
-  int64 size() const { return n; }
+  int64 size() const { return n_; }
 
  protected:
-  const int64 log2n = 0;
-  const int64 log4n = 0;
-  const int64 logn = 0;
-  const int64 n = 1;
+  const int64 log2n_ = 0;
+  const int64 log4n_ = 0;
+  const int64 logn_ = 0;
+  const int64 n_ = 1;
 };
 
 class FFTFactoryBase {

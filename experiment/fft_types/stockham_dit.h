@@ -32,8 +32,8 @@ class StockhamDIT final : public FFT {
     Complex* y = const_cast<Complex*>(work.data());
     const Complex* pw = ws.data();
     int64 l = 1;
-    int64 m = n;
-    for (int64 i = 0; i < log4n - 1; ++i) {
+    int64 m = n_;
+    for (int64 i = 0; i < log4n_ - 1; ++i) {
       m /= 4;
       dft4<backward>(x, y, l, m, pw);
       pw += m * 3;
@@ -42,17 +42,17 @@ class StockhamDIT final : public FFT {
     }
     {
       m /= 4;
-      dft4<backward>(x, log2n ? y : a, l, m, pw);
+      dft4<backward>(x, log2n_ ? y : a, l, m, pw);
       l *= 4;
     }
-    if (log2n) {
+    if (log2n_) {
       m /= 2;
       dft2(y, a, l);
       l *= 2;
     }
     if (backward) {
-      double inv = 1.0 / n;
-      for (int i = 0; i < n; ++i) {
+      double inv = 1.0 / n_;
+      for (int i = 0; i < n_; ++i) {
         a[i] *= inv;
       }
     }
@@ -96,9 +96,9 @@ class StockhamDIT final : public FFT {
       }
     }
     for (int64 k = 1; k < m; ++k) {
-      Complex w1 = backward ? pw[k * 3].conj() : pw[k * 3];
-      Complex w2 = backward ? pw[k * 3 + 1].conj() : pw[k * 3 + 1];
-      Complex w3 = backward ? pw[k * 3 + 2].conj() : pw[k * 3 + 2];
+      auto&& w1 = backward ? pw[k * 3].conj() : pw[k * 3];
+      auto&& w2 = backward ? pw[k * 3 + 1].conj() : pw[k * 3 + 1];
+      auto&& w3 = backward ? pw[k * 3 + 2].conj() : pw[k * 3 + 2];
       for (int64 j = 0; j < l; ++j) {
         int64 ix0 = k * l + j;
         int64 ix1 = (k + m) * l + j;
@@ -129,11 +129,11 @@ class StockhamDIT final : public FFT {
 };
 
 void StockhamDIT::init() {
-  work.resize(n);
+  work.resize(n_);
   int64 l = 1;
-  int64 m = n;
-  const double theta = -2 * M_PI / n;
-  for (int64 i = 0; i < log4n; ++i) {
+  int64 m = n_;
+  const double theta = -2 * M_PI / n_;
+  for (int64 i = 0; i < log4n_; ++i) {
     m /= 4;
     for (int64 k = 0; k < m; ++k) {
       const double t = theta * l * k;

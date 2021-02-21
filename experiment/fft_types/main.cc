@@ -8,8 +8,10 @@
 #include "cooley.h"
 #include "pmp.h"
 #include "pmp2.h"
+#include "pmp5.h"
 #include "stockham_dit.h"
 #include "stockham_dif.h"
+#include "stockham6.h"
 
 using Clock = std::chrono::system_clock;
 using MS = std::chrono::milliseconds;
@@ -23,9 +25,11 @@ int main() {
   std::vector<FFTFactoryBase*> factories {
     new FFTFactory<PMP>,
     new FFTFactory<PMP2>,
-    // new FFTFactory<Cooley>,
-    // new FFTFactory<StockhamDIT>,
-    // new FFTFactory<StockhamDIF>,
+    new FFTFactory<PMP5>,
+    new FFTFactory<Cooley>,
+    new FFTFactory<StockhamDIT>,
+    new FFTFactory<StockhamDIF>,
+    new FFTFactory<Stockham6>,
   };
 
   static constexpr int64 kColumnWidth = 10;

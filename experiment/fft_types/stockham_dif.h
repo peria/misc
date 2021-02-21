@@ -31,24 +31,24 @@ class StockhamDIF final : public FFT {
     Complex* x = a;
     Complex* y = const_cast<Complex*>(work.data());
     const Complex* pw = ws.data();
-    int64 l = n;
+    int64 l = n_;
     int64 m = 1;
-    if (log4n % 2) {
+    if (log4n_ % 2) {
       std::swap(x, y);
     }
-    if (log2n) {
+    if (log2n_) {
       l /= 2;
       dft2(a, x, l);
       m *= 2;
     }
     {
       l /= 4;
-      dft4<backward>(log2n ? x : a, y, l, m, pw);
+      dft4<backward>(log2n_ ? x : a, y, l, m, pw);
       pw += m * 3;
       m *= 4;
       std::swap(x, y);
     }
-    for (int64 i = 1; i < log4n; ++i) {
+    for (int64 i = 1; i < log4n_; ++i) {
       l /= 4;
       dft4<backward>(x, y, l, m, pw);
       pw += m * 3;
@@ -56,8 +56,8 @@ class StockhamDIF final : public FFT {
       std::swap(x, y);
     }
     if (backward) {
-      double inv = 1.0 / n;
-      for (int i = 0; i < n; ++i) {
+      double inv = 1.0 / n_;
+      for (int i = 0; i < n_; ++i) {
         a[i] *= inv;
       }
     }
@@ -134,15 +134,15 @@ class StockhamDIF final : public FFT {
 };
 
 void StockhamDIF::init() {
-  work.resize(n);
-  int64 l = n;
+  work.resize(n_);
+  int64 l = n_;
   int64 m = 1;
-  const double theta = -2 * M_PI / n;
-  if (log2n) {
+  const double theta = -2 * M_PI / n_;
+  if (log2n_) {
     l /= 2;
     m *= 2;
   }
-  for (int64 i = 0; i < log4n; ++i) {
+  for (int64 i = 0; i < log4n_; ++i) {
     l /= 4;
     for (int64 k = 0; k < m; ++k) {
       double t = theta * l * k;

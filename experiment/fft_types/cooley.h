@@ -32,22 +32,22 @@ class Cooley : public FFT {
   void dft(Complex* a) const {
     auto* pw = ws.data();
     int64 l = 1;
-    int64 m = n;
-    for (int64 i = 0; i < log4n; ++i) {
+    int64 m = n_;
+    for (int64 i = 0; i < log4n_; ++i) {
       m /= 4;
       dft4<backward>(a, l, m, pw);
       pw += m * 3;
       l *= 4;
     }
-    for (int64 i = 0; i < log2n; ++i) {
+    for (int64 i = 0; i < log2n_; ++i) {
       m /= 2;
       dft2(a, l);
       l *= 2;
     }
     sort(a);
     if (backward) {
-      double inv = 1.0 / n;
-      for (int64 i = 0; i < n; ++i) {
+      double inv = 1.0 / n_;
+      for (int64 i = 0; i < n_; ++i) {
         a[i] *= inv;
       }
     }
@@ -116,9 +116,9 @@ class Cooley : public FFT {
 void Cooley::init() {
   {
     int64 l = 1;
-    int64 m = n;
-    const double theta = -2 * M_PI / n;
-    for (int64 i = 0; i < log4n; ++i) {
+    int64 m = n_;
+    const double theta = -2 * M_PI / n_;
+    for (int64 i = 0; i < log4n_; ++i) {
       m /= 4;
       for (int64 k = 0; k < m; ++k) {
         double t = theta * l * k;
@@ -131,10 +131,10 @@ void Cooley::init() {
   }
 
   {
-    ip.resize(1LL << (logn / 2));
+    ip.resize(1LL << (logn_ / 2));
     ip[0] = 0;
     int64 l = 1;
-    int64 m = n;
+    int64 m = n_;
     while (2 * l < m) {
       m = m / 2;
       for (int64 j = 0; j < l; ++j) {
@@ -146,9 +146,9 @@ void Cooley::init() {
 }
 
 void Cooley::sort(Complex* a) const {
-  int64 log_half = logn / 2;
+  int64 log_half = logn_ / 2;
   int64 m = 1LL << log_half;
-  if (logn % 2 == 0) {
+  if (logn_ % 2 == 0) {
     for (int64 i = 1; i < m; ++i) {
       for (int64 j = 0; j < i; ++j) {
         int64 ji = j + ip[i];

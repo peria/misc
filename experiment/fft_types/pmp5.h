@@ -6,13 +6,14 @@
 #include "complex.h"
 #include "fft.h"
 
-class PMP : public FFT {
+// Extend PMP with 6 step fft, but do not transpose at last.
+class PMP5 : public FFT {
  public:
-  PMP(int64 log2k)
+  PMP5(int64 log2k)
     : FFT(log2k % 2, log2k / 2) {
     init();
   }
-  ~PMP() override = default;
+  ~PMP5() override = default;
 
   static const char* name() { return "PMP"; }
 
@@ -165,7 +166,7 @@ class PMP : public FFT {
   std::vector<Complex> ws;
 };
 
-void PMP::init() {
+void PMP5::init() {
   int64 l = 1;
   int64 m = n_;
   const double theta = -2 * M_PI / n_;
