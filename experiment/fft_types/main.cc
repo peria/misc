@@ -24,12 +24,12 @@ int main() {
 
   std::vector<FFTFactoryBase*> factories {
     new FFTFactory<PMP>,
-    new FFTFactory<PMP2>,
+    // new FFTFactory<PMP2>,
     new FFTFactory<PMP5>,
-    new FFTFactory<Cooley>,
-    new FFTFactory<StockhamDIT>,
-    new FFTFactory<StockhamDIF>,
-    new FFTFactory<Stockham6>,
+    // new FFTFactory<Cooley>,
+    // new FFTFactory<StockhamDIT>,
+    // new FFTFactory<StockhamDIF>,
+    // new FFTFactory<Stockham6>,
   };
 
   static constexpr int64 kColumnWidth = 10;
