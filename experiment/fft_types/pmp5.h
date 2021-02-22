@@ -8,7 +8,8 @@
 
 // Extend PMP with 6 step fft, but do not transpose at last.
 class PMP5 : public FFT {
-  static constexpr int64 kThreshold = 12;
+  static constexpr int64 kThreshold = 13;
+  static constexpr int64 kPadding = 4;
 
  public:
   PMP5(int64 logn)
@@ -46,30 +47,30 @@ class PMP5 : public FFT {
     if (logn1) {
       const Complex* pw1 = pw + (n2 - log2n2) - (n1 - log2n1);
       Complex* b0 = const_cast<Complex*>(buffer.data());
-      Complex* b1 = b0 + n2 + 1;
-      Complex* b2 = b1 + n2 + 1;
-      Complex* b3 = b2 + n2 + 1;
-      for (int64 c = 0; c < n2; c += 4) {
+      Complex* b1 = b0 + n2 + kPadding;
+      Complex* b2 = b1 + n2 + kPadding;
+      Complex* b3 = b2 + n2 + kPadding;
+      for (int64 c = 0; c < n2; c += 2) {
         for (int64 r = 0; r < n1; ++r) {
           b0[r] = a[n2 * r + c];
           b1[r] = a[n2 * r + c + 1];
-          b2[r] = a[n2 * r + c + 2];
-          b3[r] = a[n2 * r + c + 3];
         }
         dft1d(b0, log2n1, log4n1, pw1);
         dft1d(b1, log2n1, log4n1, pw1);
-        dft1d(b2, log2n1, log4n1, pw1);
-        dft1d(b3, log2n1, log4n1, pw1);
         for (int64 r = 0; r < n1; ++r) {
-          a[n2 * r + c] = b0[r] * twiddle[n2 * r + c];
-          a[n2 * r + c + 1] = b1[r] * twiddle[n2 * r + c + 1];
-          a[n2 * r + c + 2] = b1[r] * twiddle[n2 * r + c + 2];
-          a[n2 * r + c + 3] = b1[r] * twiddle[n2 * r + c + 3];
+          a[n2 * r + c] = b0[r];
+          a[n2 * r + c + 1] = b1[r];
         }
       }
-    }
-    for (int64 r = 0; r < n1; ++r) {
-      dft1d(a + n2 * r, log2n2, log4n2, pw);
+      dft1d(a, log2n2, log4n2, pw);
+      for (int64 r = 1; r < n1; ++r) {
+        for (int64 c = 1; c < n2; ++c) {
+          a[n2 * r + c] *= twiddle[n2 * r + c];
+        }
+        dft1d(a + n2 * r, log2n2, log4n2, pw);
+      }
+    } else {
+      dft1d(a, log2n2, log4n2, pw);
     }
   }
 
@@ -93,32 +94,30 @@ class PMP5 : public FFT {
 
   void idft(Complex* a) const {
     const Complex* pw = ws.data() + ws.size();
-    for (int64 r = 0; r < n1; ++r) {
-      idft1d(a + n2 * r, log2n2, log4n2, pw);
-    }
     if (logn1) {
+      idft1d(a, log2n2, log4n2, pw);
+      for (int64 r = 1; r < n1; ++r) {
+        idft1d(a + n2 * r, log2n2, log4n2, pw);
+        for (int64 c = 1; c < n2; ++c) {
+          a[n2 * r + c] *= twiddle[n2 * r + c].conj();
+        }
+      }
       Complex* b0 = const_cast<Complex*>(buffer.data());
-      Complex* b1 = b0 + n2 + 1;
-      Complex* b2 = b1 + n2 + 1;
-      Complex* b3 = b2 + n2 + 1;
-      for (int64 c = 0; c < n2; c += 4) {
+      Complex* b1 = b0 + n2 + kPadding;
+      for (int64 c = 0; c < n2; c += 2) {
         for (int64 r = 0; r < n1; ++r) {
-          b0[r] = a[n2 * r + c] * twiddle[n2 * r + c].conj();
-          b1[r] = a[n2 * r + c + 1] * twiddle[n2 * r + c + 1].conj();
-          b2[r] = a[n2 * r + c + 2] * twiddle[n2 * r + c + 2].conj();
-          b3[r] = a[n2 * r + c + 3] * twiddle[n2 * r + c + 3].conj();
+          b0[r] = a[n2 * r + c];
+          b1[r] = a[n2 * r + c + 1];
         }
         idft1d(b0, log2n1, log4n1, pw);
         idft1d(b1, log2n1, log4n1, pw);
-        idft1d(b2, log2n1, log4n1, pw);
-        idft1d(b3, log2n1, log4n1, pw);
         for (int64 r = 0; r < n1; ++r) {
           a[n2 * r + c] = b0[r];
           a[n2 * r + c + 1] = b1[r];
-          a[n2 * r + c + 2] = b0[r];
-          a[n2 * r + c + 3] = b1[r];
         }
       }
+    } else {
+      idft1d(a, log2n2, log4n2, pw);
     }
   }
 
@@ -272,8 +271,6 @@ void PMP5::init(int64 log2n, int64 log4n) {
   }
 
   if (logn1) {
-    const double theta = -2 * M_PI / n_;
-
     std::vector<int64> rs(n1);
     int64 rr = 0;
     for (int64 i = 1; i < n1; ++i) {
@@ -282,6 +279,7 @@ void PMP5::init(int64 log2n, int64 log4n) {
     }
 
     // twiddle[r*n2 + c] = w^(bitrev(r)*c)  0<=r<n1, 0<=c<n2
+    const double theta = -2 * M_PI / n_;
     for (int64 r = 0; r < n1; ++r) {
       for (int64 c = 0; c < n2; ++c) {
         double t = theta * rs[r] * c;
@@ -289,6 +287,6 @@ void PMP5::init(int64 log2n, int64 log4n) {
       }
     }
 
-    buffer.resize((n2 + 1) * 4);
+    buffer.resize((n2 + kPadding) * 4);
   }
 }
