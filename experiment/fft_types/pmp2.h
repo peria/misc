@@ -9,7 +9,7 @@
 
 // Extend PMP to repack data with padding.
 class PMP2 : public FFT {
-  static constexpr int64 kLogBlockSize = 8;
+  static constexpr int64 kLogBlockSize = 16;
   static constexpr int64 kBlockSize = 1LL << kLogBlockSize;
   static constexpr int64 kPaddingSize = 1;
   static constexpr int64 kStrideSize = kBlockSize + kPaddingSize;

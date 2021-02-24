@@ -8,7 +8,7 @@
 
 // Extend PMP with 6 step fft, but do not transpose at last.
 class PMP5 : public FFT {
-  static constexpr int64 kThreshold = 13;
+  static constexpr int64 kThreshold = 15;
   static constexpr int64 kPadding = 4;
 
  public:

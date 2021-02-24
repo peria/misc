@@ -12,6 +12,7 @@
 #include "stockham_dit.h"
 #include "stockham_dif.h"
 #include "stockham6.h"
+#include "vpmp.h"
 
 using Clock = std::chrono::system_clock;
 using MS = std::chrono::milliseconds;
@@ -24,6 +25,7 @@ int main() {
 
   std::vector<FFTFactoryBase*> factories {
     new FFTFactory<PMP>,
+    new FFTFactory<VPMP>,
     new FFTFactory<PMP2>,
     new FFTFactory<PMP5>,
     new FFTFactory<Cooley>,
