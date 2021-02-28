@@ -5,6 +5,7 @@ CXXFLAGS=-O2 -std=c++14
 
 HEADS=fft.h complex.h
 HEADS+=pmp.h
+HEADS+=dpmp.h
 HEADS+=pmp2.h
 HEADS+=pmp5.h
 HEADS+=vpmp.h

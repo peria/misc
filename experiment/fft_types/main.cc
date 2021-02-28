@@ -6,6 +6,7 @@
 
 #include "complex.h"
 #include "cooley.h"
+#include "dpmp.h"
 #include "pmp.h"
 #include "pmp2.h"
 #include "pmp5.h"
@@ -25,13 +26,14 @@ int main() {
 
   std::vector<FFTFactoryBase*> factories {
     new FFTFactory<PMP>,
-    new FFTFactory<VPMP>,
-    new FFTFactory<PMP2>,
-    new FFTFactory<PMP5>,
-    new FFTFactory<Cooley>,
-    new FFTFactory<StockhamDIT>,
-    new FFTFactory<StockhamDIF>,
-    new FFTFactory<Stockham6>,
+    new FFTFactory<DPMP>,
+    // new FFTFactory<VPMP>,
+    // new FFTFactory<PMP2>,
+    // new FFTFactory<PMP5>,
+    // new FFTFactory<Cooley>,
+    // new FFTFactory<StockhamDIT>,
+    // new FFTFactory<StockhamDIF>,
+    // new FFTFactory<Stockham6>,
   };
 
   static constexpr int64 kColumnWidth = 10;
