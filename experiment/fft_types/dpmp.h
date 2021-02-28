@@ -60,19 +60,47 @@ class DPMP : public FFT {
   }
 
   void idft(Complex* a) const {
-    auto* pw = ws.data() + ws.size();
-    int64 l = n_;
-    int64 m = 1;
-    if (log2n_) {
-      l /= 2;
-      dft2(a, l);
-      m *= 2;
+    const int64 log4n_local = std::min<int64>(log4n_, 8);
+    const int64 log4n_all = log4n_ - log4n_local;
+    const int64 ll = 1LL << (log2n_ + log4n_local * 2);
+    const int64 ml = 1LL << (log4n_all * 2);
+    for (int64 k = 0; k < ml; ++k) {
+      auto* pw = ws.data() + ws.size();
+      Complex* al = a + k * ll;
+      int64 l = ll;
+      int64 m = 1;
+      if (log2n_) {
+        l /= 2;
+        dft2(a, l);
+        m *= 2;
+      }
+      for (int64 i = 0; i < log4n_; ++i) {
+        l /= 4;
+        pw -= m * 3;
+        idft4(a, l, m, pw);
+        m *= 4;
+      }
     }
-    for (int64 i = 0; i < log4n_; ++i) {
-      l /= 4;
-      pw -= m * 3;
-      idft4(a, l, m, pw);
-      m *= 4;
+
+    if (log4n_all) {
+      auto* pw = ws.data() + ws.size();
+      int64 l = n_;
+      int64 m = 1;
+      if (log2n_) {
+        l /= 2;
+        m *= 2;
+      }
+      for (int64 i = 0; i < log4n_; ++i) {
+        l /= 4;
+        pw -= m * 3;
+        m *= 4;
+      }
+      for (int64 i = 0; i < log4n_all; ++i) {
+        l /= 4;
+        pw -= m * 3;
+        idft4(a, l, m, pw);
+        m *= 4;
+      }
     }
     double inv = 1.0 / n_;
     for (int64 i = 0; i < n_; ++i)

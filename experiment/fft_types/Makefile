@@ -8,7 +8,6 @@ HEADS+=pmp.h
 HEADS+=dpmp.h
 HEADS+=pmp2.h
 HEADS+=pmp5.h
-HEADS+=vpmp.h
 HEADS+=cooley.h
 HEADS+=stockham_dit.h
 HEADS+=stockham_dif.h
