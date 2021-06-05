@@ -1,6 +1,9 @@
 #pragma once
 
+#include <cassert>
 #include <cmath>
+#include <vector>
+
 #include "complex.h"
 
 class FFT {
@@ -13,6 +16,10 @@ class FFT {
       
   virtual ~FFT() = default;
   virtual void dft(Complex* x, bool backward) const = 0;
+  virtual void rft(Complex* x, bool backward) const {
+    // Not implemented methods
+    assert(false);
+  }
 
   double getFlop() const {
     double flop = 34 * log4n_ * n_ / 4 + 4 * log2n_ * n_ / 2;

@@ -15,8 +15,11 @@ HEADS+=stockham6.h
 
 all: run
 
-run: benchmark
-	./benchmark
+run: rft_bench
+	./rft_bench
 
-benchmark: main.cc $(HEADS)
+rft_bench: main.cc $(HEADS)
+	$(CXX) $(CXXFLAGS) -DREAL_FFT=1 $< -o $@
+
+dft_bench: main.cc $(HEADS)
 	$(CXX) $(CXXFLAGS) $< -o $@

@@ -7,12 +7,17 @@
 #include "complex.h"
 #include "cooley.h"
 #include "dpmp.h"
+#include "fft.h"
 #include "pmp.h"
 #include "pmp2.h"
-#include "pmp5.h"
-#include "stockham_dit.h"
 #include "stockham_dif.h"
+#include "stockham_dit.h"
+
+// FFTs that do not work with w^(n/4) RFT.
+#ifndef REAL_FFT
+#include "pmp5.h"
 #include "stockham6.h"
+#endif
 
 using Clock = std::chrono::system_clock;
 using MS = std::chrono::milliseconds;
@@ -27,11 +32,13 @@ int main() {
     new FFTFactory<PMP>,
     new FFTFactory<DPMP>,
     new FFTFactory<PMP2>,
-    new FFTFactory<PMP5>,
     new FFTFactory<Cooley>,
     new FFTFactory<StockhamDIT>,
     new FFTFactory<StockhamDIF>,
+#ifndef REAL_FFT
+    new FFTFactory<PMP5>,
     new FFTFactory<Stockham6>,
+#endif
   };
 
   static constexpr int64 kColumnWidth = 10;
@@ -74,8 +81,13 @@ double MeasurePerformance(const FFT& fft, std::vector<Complex>& data) {
   auto due_time = start + std::chrono::seconds(kTimeLimitSec);
   int64 loop_count = 0;
   for (loop_count = 0; loop_count < kMaxLoopCount && Clock::now() < due_time; ++loop_count) {
+#ifdef REAL_FFT
+    fft.rft(data.data(), false);
+    fft.rft(data.data(), true);
+#else
     fft.dft(data.data(), false);
     fft.dft(data.data(), true);
+#endif
   }
   auto end = Clock::now();
   double duration = std::chrono::duration_cast<MS>(end - start).count() * 1e-3;
@@ -88,7 +100,7 @@ bool Verify(const FFT& fft) {
   static constexpr double kEPS = 1e-4;
 
   const int64 n = fft.size();
-  // Do not check
+  // For large N, we do not check it.
   if (n >= 256)
     return true;
 
@@ -96,12 +108,13 @@ bool Verify(const FFT& fft) {
   for (int64 i = 0; i < n; ++i) {
     x[i] = Complex(2 * i + 1, 2 * i + 2);
   }
+#ifdef REAL_FFT
+  fft.rft(x.data(), false);
+  fft.rft(x.data(), true);
+#else
   fft.dft(x.data(), false);
-  // for (int64 i = 0; i < n; ++i) {
-  //   std::cerr << x[i].real << " + " << x[i].imag << "i\n";
-  // }
-  // std::cerr << "\n";
   fft.dft(x.data(), true);
+#endif
   bool pass = true;
   for (int64 i = 0; i < n; ++i) {
     auto& d = x[i];

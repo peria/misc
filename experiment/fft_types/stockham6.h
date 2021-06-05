@@ -66,7 +66,7 @@ class Stockham6 final : public FFT {
     }
   }
 
-  static const char* name() { return "Stockham6"; }
+  static const char* name() { return "6StepStock"; }
 
  private:
   void init();

@@ -36,6 +36,34 @@ class PMP2 : public FFT {
     }
   }
 
+  void rft(Complex* x, bool backward) const override {
+    if (backward) {
+      dft(x, backward);
+      const Complex& wq1 = wq.conj();
+      const Complex& wq2 = wq1 * wq1;
+      const Complex& wq3 = wq2 * wq1;
+      for (int i = 0; i < n_ / 4; ++i) {
+        const Complex& w = ws[3 * i].conj();
+        x[4 * i] *= w;
+        x[4 * i + 1] *= w * wq1;
+        x[4 * i + 2] *= w * wq2;
+        x[4 * i + 3] *= w * wq3;
+      }
+    } else {
+      const Complex& wq1 = wq;
+      const Complex& wq2 = wq1 * wq1;
+      const Complex& wq3 = wq2 * wq1;
+      for (int i = 0; i < n_ / 4; ++i) {
+        const Complex& w = ws[3 * i];
+        x[4 * i] *= w;
+        x[4 * i + 1] *= w * wq1;
+        x[4 * i + 2] *= w * wq2;
+        x[4 * i + 3] *= w * wq3;
+      }
+      dft(x, backward);
+    }
+  }
+
   void dftWithoutRepack(Complex* x, bool backward) const {
     if (backward) {
       idft(x);
@@ -193,6 +221,7 @@ class PMP2 : public FFT {
   }
 
   std::vector<Complex> ws;
+  Complex wq;
   std::vector<Complex> work;
   int64 log2_block;
   int64 log2_point;
@@ -202,6 +231,7 @@ void PMP2::init() {
   int64 l = 1;
   int64 m = n_;
   const double theta = -2 * M_PI / n_;
+  wq = Complex {std::cos(theta / 4), -std::sin(theta / 4)};
   for (int64 i = 0; i < log4n_; ++i) {
     m /= 4;
     for (int64 k = 0; k < m; ++k) {

@@ -21,6 +21,34 @@ class StockhamDIF final : public FFT {
       dft<false>(x);
   }
 
+  void rft(Complex* x, bool backward) const override {
+    if (backward) {
+      dft(x, backward);
+      const Complex& wq1 = wq.conj();
+      const Complex& wq2 = wq1 * wq1;
+      const Complex& wq3 = wq2 * wq1;
+      for (int i = 0; i < n_ / 4; ++i) {
+        const Complex& w = ws[3 * i].conj();
+        x[4 * i] *= w;
+        x[4 * i + 1] *= w * wq1;
+        x[4 * i + 2] *= w * wq2;
+        x[4 * i + 3] *= w * wq3;
+      }
+    } else {
+      const Complex& wq1 = wq;
+      const Complex& wq2 = wq1 * wq1;
+      const Complex& wq3 = wq2 * wq1;
+      for (int i = 0; i < n_ / 4; ++i) {
+        const Complex& w = ws[3 * i];
+        x[4 * i] *= w;
+        x[4 * i + 1] *= w * wq1;
+        x[4 * i + 2] *= w * wq2;
+        x[4 * i + 3] *= w * wq3;
+      }
+      dft(x, backward);
+    }
+  }
+
   static const char* name() { return "StockDIF"; }
 
  private:
@@ -130,6 +158,7 @@ class StockhamDIF final : public FFT {
   }
 
   std::vector<Complex> ws;
+  Complex wq;
   std::vector<Complex> work;
 };
 
@@ -138,6 +167,7 @@ void StockhamDIF::init() {
   int64 l = n_;
   int64 m = 1;
   const double theta = -2 * M_PI / n_;
+  wq = Complex {std::cos(theta / 4), -std::sin(theta / 4)};
   if (log2n_) {
     l /= 2;
     m *= 2;
