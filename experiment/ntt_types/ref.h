@@ -33,8 +33,14 @@ class RefNTT final : public NTT {
   }
 
   void dit(ElementType* x) const {
-    for (int64 m = 1; m < n_; m *= 2) {
+    int64 m = 1;
+    if (log2n_) {
       dit2(x, m);
+      m *= 2;
+    }
+    for (int64 i = 0; i < log4n_; ++i) {
+      dit4(x, m);
+      m *= 4;
     }
   }
 
@@ -42,13 +48,11 @@ class RefNTT final : public NTT {
 
  private:
   void dif2(ElementType* x, int64 m) const {
-    Type w = pow(Type(W), (P - 1) / (2 * m));
     for (int64 k = 0; k < m; ++k) {
-      Type wk = pow(w, k);
       for (int64 j = 0; j < n_; j += 2 * m) {
         Type& x0 = x[k + j];
         Type& x1 = x[k + j + m];
-        Type x1w = (x0 - x1) * wk;
+        Type x1w = x0 - x1;
         x0 = x0 + x1;
         x1 = x1w;
       }
@@ -95,6 +99,38 @@ class RefNTT final : public NTT {
         x1 = x0 - x1w;
         x0 = x0 + x1w;
       }
+    }
+  }
+
+  void dit4(ElementType* x, int64 m) const {
+    static const Type wq = pow(Type(W), (P - 1) / 4 * 3);
+    Type w = pow(Type(W), P - 1 - (P - 1) / (4 * m));
+    Type w2 = w * w;
+    Type w3 = w2 * w;
+    Type wk(1);
+    Type wk2(1);
+    Type wk3(1);
+    for (int64 k = 0; k < m; ++k) {
+      for (int64 j = 0; j < n_; j += 4 * m) {
+        Type& x0 = x[k + j];
+        Type& x1 = x[k + j + m];
+        Type& x2 = x[k + j + 2 * m];
+        Type& x3 = x[k + j + 3 * m];
+        Type x1w = x1 * wk2;
+        Type x2w = x2 * wk;
+        Type x3w = x3 * wk3;
+        Type y0 = x0 + x1w;
+        Type y1 = x0 - x1w;
+        Type y2 = x2w + x3w;
+        Type y3 = (x2w - x3w) * wq;
+        x0 = y0 + y2;
+        x1 = y1 + y3;
+        x2 = y0 - y2;
+        x3 = y1 - y3;
+      }
+      wk *= w;
+      wk2 *= w2;
+      wk3 *= w3;
     }
   }
 };

@@ -13,13 +13,12 @@
 using Clock = std::chrono::system_clock;
 using MS = std::chrono::milliseconds;
 
-double GetMiops(const NTT& ntt, std::vector<NTT::ElementType>& data);
+double GetPerf(const NTT& ntt, std::vector<NTT::ElementType>& data);
 bool Verify(const NTT& ntt);
 int VerifyRoutines(const std::vector<NTTFactoryBase*>& factories);
+void MeasurePerformance(const std::vector<NTTFactoryBase*>& factories);
 
 int main(int argc, const char* argv[]) {
-  const int64 kMaxLogN = 20;
-
   std::vector<NTTFactoryBase*> factories{
       new NTTFactory<RefNTT>,
       new NTTFactory<RefRadix2>,
@@ -28,8 +27,16 @@ int main(int argc, const char* argv[]) {
   if (VerifyRoutines(factories) || argc > 1) {
     return 0;
   }
+  MeasurePerformance(factories);
 
+  return 0;
+}
+
+void MeasurePerformance(const std::vector<NTTFactoryBase*>& factories) {
   static constexpr int64 kColumnWidth = 10;
+  static constexpr int64 kMaxLogN = 22;
+
+  std::cout << "Performance [ns/N logN]. Smaller is better.\n";
   std::cout << "| #    |";
   for (auto* factory : factories)
     std::cout << std::setw(kColumnWidth) << factory->name() << " |";
@@ -38,10 +45,6 @@ int main(int argc, const char* argv[]) {
   for (auto* factory : factories)
     std::cout << "----------:|";
   std::cout << "\n";
-
-  if (argc > 1) {
-    return 0;
-  }
 
   // Measure performance
   for (int64 logn = 2; logn <= kMaxLogN; ++logn) {
@@ -53,17 +56,15 @@ int main(int argc, const char* argv[]) {
       data[i] = uint64(i);
     for (auto* factory : factories) {
       std::unique_ptr<NTT> ntt(factory->Create(logn));
-      double miops = GetMiops(*ntt, data);
+      double perf = GetPerf(*ntt, data);
       std::cout << std::setw(kColumnWidth) << std::fixed << std::setprecision(3)
-                << miops << " |";
+                << perf << " |";
     }
     std::cout << "\n";
   }
-
-  return 0;
 }
 
-double GetMiops(const NTT& ntt, std::vector<NTT::ElementType>& data) {
+double GetPerf(const NTT& ntt, std::vector<NTT::ElementType>& data) {
   static constexpr int64 kTimeLimitSec = 1;
   static constexpr int64 kMaxLoopCount = 10000000;
 
@@ -76,10 +77,12 @@ double GetMiops(const NTT& ntt, std::vector<NTT::ElementType>& data) {
     ntt.ntt(data.data(), true);
   }
   auto end = Clock::now();
-  double duration = std::chrono::duration_cast<MS>(end - start).count() * 1e-3;
-  double average = duration / loop_count;
-  double iop = ntt.getIop() * 2;
-  return iop / average * 1e-6;
+
+  double duration_ms = std::chrono::duration_cast<MS>(end - start).count();
+  int64 n = data.size();
+  double average = duration_ms / loop_count;
+  double perf = average / (n * std::log2(n)) * 1e+6;
+  return perf;
 }
 
 int VerifyRoutines(const std::vector<NTTFactoryBase*>& factories) {

@@ -5,6 +5,7 @@ CXXFLAGS=-O2 -std=c++14
 
 HEADS=ntt.h mod.h base.h
 HEADS+=ref.h
+HEADS+=refr2.h
 #HEADS+=pmp.h
 #HEADS+=dpmp.h
 #HEADS+=pmp2.h
