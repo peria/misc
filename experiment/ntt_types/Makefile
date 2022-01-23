@@ -14,13 +14,15 @@ HEADS+=ref.h
 #HEADS+=stockham_dif.h
 #HEADS+=stockham6.h
 
-.PHONY: all
-.PHONY: run
+.PHONY: all run check
 
 all: run
 
 run: ntt_bench
 	./ntt_bench
+
+check: ntt_bench
+	./ntt_bench check
 
 ntt_bench: main.cc $(HEADS)
 	$(CXX) $(CXXFLAGS) $< -o $@

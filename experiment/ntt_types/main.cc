@@ -8,19 +8,26 @@
 #include "mod.h"
 #include "ntt.h"
 #include "ref.h"
+#include "refr2.h"
 
 using Clock = std::chrono::system_clock;
 using MS = std::chrono::milliseconds;
 
 double GetMiops(const NTT& ntt, std::vector<NTT::ElementType>& data);
 bool Verify(const NTT& ntt);
+int VerifyRoutines(const std::vector<NTTFactoryBase*>& factories);
 
-int main() {
+int main(int argc, const char* argv[]) {
   const int64 kMaxLogN = 20;
 
   std::vector<NTTFactoryBase*> factories{
       new NTTFactory<RefNTT>,
+      new NTTFactory<RefRadix2>,
   };
+
+  if (VerifyRoutines(factories) || argc > 1) {
+    return 0;
+  }
 
   static constexpr int64 kColumnWidth = 10;
   std::cout << "| #    |";
@@ -28,11 +35,15 @@ int main() {
     std::cout << std::setw(kColumnWidth) << factory->name() << " |";
   std::cout << "\n"
             << "|------|";
-
   for (auto* factory : factories)
     std::cout << "----------:|";
   std::cout << "\n";
 
+  if (argc > 1) {
+    return 0;
+  }
+
+  // Measure performance
   for (int64 logn = 2; logn <= kMaxLogN; ++logn) {
     std::cout << "| 2^" << std::setw(2) << logn << " |";
 
@@ -42,8 +53,6 @@ int main() {
       data[i] = uint64(i);
     for (auto* factory : factories) {
       std::unique_ptr<NTT> ntt(factory->Create(logn));
-      if (!Verify(*ntt))
-        return 0;
       double miops = GetMiops(*ntt, data);
       std::cout << std::setw(kColumnWidth) << std::fixed << std::setprecision(3)
                 << miops << " |";
@@ -55,7 +64,7 @@ int main() {
 }
 
 double GetMiops(const NTT& ntt, std::vector<NTT::ElementType>& data) {
-  static constexpr int64 kTimeLimitSec = 2;
+  static constexpr int64 kTimeLimitSec = 1;
   static constexpr int64 kMaxLoopCount = 10000000;
 
   auto start = Clock::now();
@@ -71,6 +80,23 @@ double GetMiops(const NTT& ntt, std::vector<NTT::ElementType>& data) {
   double average = duration / loop_count;
   double iop = ntt.getIop() * 2;
   return iop / average * 1e-6;
+}
+
+int VerifyRoutines(const std::vector<NTTFactoryBase*>& factories) {
+  static constexpr int64 kMaxCheckLogN = 10;
+  for (int64 logn = 2; logn <= kMaxCheckLogN; ++logn) {
+    const int64 n = 1LL << logn;
+    for (auto* factory : factories) {
+      std::unique_ptr<NTT> ntt(factory->Create(logn));
+      if (!Verify(*ntt)) {
+        std::cerr << "NTT " << factory->name() << " with n = " << n
+                  << " has an issue.\n";
+        return 1;
+      }
+    }
+  }
+  std::cerr << "Routines are verified.\n";
+  return 0;
 }
 
 bool Verify(const NTT& ntt) {

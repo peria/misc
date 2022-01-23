@@ -11,7 +11,7 @@ class Mod {
     x_ = x;
     return *this;
   }
-  Mod<P>& operator=(const uint64 x) {
+  Mod<P>& operator=(uint64 x) {
     x_ = x;
     return *this;
   }
@@ -19,6 +19,7 @@ class Mod {
   operator uint64() const { return x_; }
 
   Mod<P> operator+(const Mod<P>& y) { return operator-(Mod<P>(P - y.x_)); }
+  Mod<P>& operator+=(const Mod<P>& y) { return operator-=(Mod<P>(P - y.x_)); }
 
   Mod<P> operator-(const Mod<P>& y) {
     uint64 d = x_ - y.x_;
@@ -27,14 +28,22 @@ class Mod {
     }
     return Mod<P>(d);
   }
+  Mod<P>& operator-=(const Mod<P>& y) {
+    uint64 d = x_ - y.x_;
+    if (x_ < y.x_) {
+      d += P;
+    }
+    x_ = d;
+    return *this;
+  }
 
   Mod<P>& operator*=(const Mod<P>& y) {
-    uint128 prod = uint128(x_) * y;
+    uint128 prod = uint128(x_) * y.x_;
     x_ = prod % P;
     return *this;
   }
   Mod<P> operator*(const Mod<P>& y) {
-    uint128 prod = uint128(x_) * y;
+    uint128 prod = uint128(x_) * y.x_;
     return Mod<P>(uint64(prod % P));
   }
 
