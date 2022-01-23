@@ -21,12 +21,13 @@ class RefRadix2 final : public NTT {
   }
 
   void dif(ElementType* x) const {
-    const int64 n = size();
-    Type w = pow(Type(W), (P - 1) / n);
-    for (int64 m = n / 2; m >= 1; m /= 2) {
+    Type w = pow(Type(W), (P - 1) / n_);
+    int64 m = n_;
+    for (int64 i = 0; i < logn_; ++i) {
+      m /= 2;
       Type wk(1);
       for (int64 k = 0; k < m; ++k) {
-        for (int64 j = 0; j < n; j += 2 * m) {
+        for (int64 j = 0; j < n_; j += 2 * m) {
           Type& x0 = x[k + j];
           Type& x1 = x[k + j + m];
           Type x1w = (x0 - x1) * wk;
@@ -40,12 +41,12 @@ class RefRadix2 final : public NTT {
   }
 
   void dit(ElementType* x) const {
-    const int64 n = size();
-    for (int64 m = 1; m < n; m *= 2) {
+    int64 m = 1;
+    for (int64 i = 0; i < logn_; ++i) {
       Type w = pow(Type(W), P - 1 - (P - 1) / (2 * m));
       Type wk(1);
       for (int64 k = 0; k < m; ++k) {
-        for (int64 j = 0; j < n; j += 2 * m) {
+        for (int64 j = 0; j < n_; j += 2 * m) {
           Type& x0 = x[k + j];
           Type& x1 = x[k + j + m];
           Type x1w = x1 * wk;
@@ -54,6 +55,7 @@ class RefRadix2 final : public NTT {
         }
         wk *= w;
       }
+      m *= 2;
     }
   }
 
