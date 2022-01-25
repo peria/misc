@@ -2,56 +2,52 @@
 
 #include "ntt.h"
 
-class RefNTT final : public NTT {
+class RefNoTable final : public NTT {
   using Type = ElementType;
 
  public:
-  static const char* name() { return "Ref"; }
+  static const char* name() { return "Ref%Table"; }
 
-  RefNTT(int64 log2n) : NTT(log2n % 2, log2n / 2) { init(); }
+  RefNoTable(int64 log2n) : NTT(log2n % 2, log2n / 2) {}
 
   void ntt(ElementType* x, bool backward) const {
     if (backward) {
-      intt(x);
+      dit(x);
       Mod<P> inv = pow(Mod<P>(n_), P - 2);
       for (int64 i = 0; i < n_; ++i) {
         x[i] *= inv;
       }
     } else {
-      ntt(x);
+      dif(x);
     }
   }
 
  private:
-  void ntt(ElementType* x) const {
-    const Type* wkp = ws_.data();
+  void dif(ElementType* x) const {
     int64 m = n_;
     for (int64 i = 0; i < log4n_; ++i) {
       m /= 4;
-      ntt4(x, m, wkp);
-      wkp += 3 * m;
+      dif4(x, m);
     }
     if (log2n_) {
       m /= 2;
-      ntt2(x, m);
+      dif2(x, m);
     }
   }
 
-  void intt(ElementType* x) const {
-    const Type* wkp = iws_.data();
+  void dit(ElementType* x) const {
     int64 m = 1;
     if (log2n_) {
-      intt2(x, m);
+      dit2(x, m);
       m *= 2;
     }
     for (int64 i = 0; i < log4n_; ++i) {
-      intt4(x, m, wkp);
-      wkp += 3 * m;
+      dit4(x, m);
       m *= 4;
     }
   }
 
-  void ntt2(ElementType* x, int64 m) const {
+  void dif2(ElementType* x, int64 m) const {
     for (int64 k = 0; k < m; ++k) {
       for (int64 j = 0; j < n_; j += 2 * m) {
         Type& x0 = x[k + j];
@@ -63,12 +59,15 @@ class RefNTT final : public NTT {
     }
   }
 
-  void ntt4(Type* x, int64 m, const Type* wkp) const {
+  void dif4(ElementType* x, int64 m) const {
     static const Type wq = pow(Type(W), (P - 1) / 4);
+    Type w = pow(Type(W), (P - 1) / (4 * m));
+    Type w2 = w * w;
+    Type w3 = w2 * w;
+    Type wk(1);
+    Type wk2(1);
+    Type wk3(1);
     for (int64 k = 0; k < m; ++k) {
-      const Type& wk = *wkp++;
-      const Type& wk2 = *wkp++;
-      const Type& wk3 = *wkp++;
       for (int64 j = 0; j < n_; j += 4 * m) {
         Type& x0 = x[k + j];
         Type& x1 = x[k + j + m];
@@ -83,27 +82,35 @@ class RefNTT final : public NTT {
         x1 = (y0 - y1) * wk2;
         x3 = (y2 - y3) * wk3;
       }
+      wk *= w;
+      wk2 *= w2;
+      wk3 *= w3;
     }
   }
 
-  void intt2(ElementType* x, int64 m) const {
+  void dit2(ElementType* x, int64 m) const {
+    Type w = pow(Type(W), P - 1 - (P - 1) / (2 * m));
     for (int64 k = 0; k < m; ++k) {
+      Type wk = pow(w, k);
       for (int64 j = 0; j < n_; j += 2 * m) {
         Type& x0 = x[k + j];
         Type& x1 = x[k + j + m];
-        Type x1w = x1;
+        Type x1w = x1 * wk;
         x1 = x0 - x1w;
         x0 = x0 + x1w;
       }
     }
   }
 
-  void intt4(Type* x, int64 m, const Type* wkp) const {
+  void dit4(ElementType* x, int64 m) const {
     static const Type wq = pow(Type(W), (P - 1) / 4 * 3);
+    Type w = pow(Type(W), P - 1 - (P - 1) / (4 * m));
+    Type w2 = w * w;
+    Type w3 = w2 * w;
+    Type wk(1);
+    Type wk2(1);
+    Type wk3(1);
     for (int64 k = 0; k < m; ++k) {
-      const Type& wk = *wkp++;
-      const Type& wk2 = *wkp++;
-      const Type& wk3 = *wkp++;
       for (int64 j = 0; j < n_; j += 4 * m) {
         Type& x0 = x[k + j];
         Type& x1 = x[k + j + m];
@@ -121,52 +128,9 @@ class RefNTT final : public NTT {
         x2 = y0 - y2;
         x3 = y1 - y3;
       }
+      wk *= w;
+      wk2 *= w2;
+      wk3 *= w3;
     }
   }
-
-  void init() {
-    int64 m = n_;
-    for (int64 i = 0; i < log4n_; ++i) {
-      m /= 4;
-      Type w = pow(Type(W), (P - 1) / (4 * m));
-      Type w2 = w * w;
-      Type w3 = w2 * w;
-      Type wk(1);
-      Type wk2(1);
-      Type wk3(1);
-      for (int64 k = 0; k < m; ++k) {
-        ws_.push_back(wk);
-        ws_.push_back(wk2);
-        ws_.push_back(wk3);
-        wk *= w;
-        wk2 *= w2;
-        wk3 *= w3;
-      }
-    }
-
-    m = 1;
-    if (log2n_) {
-      m *= 2;
-    }
-    for (int64 i = 0; i < log4n_; ++i) {
-      Type w = pow(Type(W), P - 1 - (P - 1) / (4 * m));
-      Type w2 = w * w;
-      Type w3 = w2 * w;
-      Type wk(1);
-      Type wk2(1);
-      Type wk3(1);
-      for (int64 k = 0; k < m; ++k) {
-        iws_.push_back(wk);
-        iws_.push_back(wk2);
-        iws_.push_back(wk3);
-        wk *= w;
-        wk2 *= w2;
-        wk3 *= w3;
-      }
-      m *= 4;
-    }
-  }
-
-  std::vector<Mod<P>> ws_;
-  std::vector<Mod<P>> iws_;
 };

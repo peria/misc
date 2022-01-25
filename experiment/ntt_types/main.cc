@@ -5,14 +5,17 @@
 #include <vector>
 
 #include "base.h"
+#include "fft.h"  // PMP
 #include "mod.h"
 #include "ntt.h"
 #include "ref.h"
+#include "ref_no_table.h"
 #include "refr2.h"
 
 using Clock = std::chrono::system_clock;
 using MS = std::chrono::milliseconds;
 
+double GetFFTPerf(int64 logn_complex);
 double GetPerf(const NTT& ntt, std::vector<NTT::ElementType>& data);
 bool Verify(const NTT& ntt);
 int VerifyRoutines(const std::vector<NTTFactoryBase*>& factories);
@@ -21,7 +24,8 @@ void MeasurePerformance(const std::vector<NTTFactoryBase*>& factories);
 int main(int argc, const char* argv[]) {
   std::vector<NTTFactoryBase*> factories{
       new NTTFactory<RefNTT>,
-      new NTTFactory<RefRadix2>,
+      // new NTTFactory<RefRadix2>,
+      new NTTFactory<RefNoTable>,
   };
 
   if (VerifyRoutines(factories) || argc > 1) {
@@ -38,10 +42,13 @@ void MeasurePerformance(const std::vector<NTTFactoryBase*>& factories) {
 
   std::cout << "Performance [ns/N logN]. Smaller is better.\n";
   std::cout << "| #    |";
+  std::cout << std::setw(kColumnWidth) << "FFT"
+            << " |";
   for (auto* factory : factories)
     std::cout << std::setw(kColumnWidth) << factory->name() << " |";
   std::cout << "\n"
-            << "|------|";
+            << "|------|"
+            << "----------:|";
   for (auto* factory : factories)
     std::cout << "----------:|";
   std::cout << "\n";
@@ -49,6 +56,12 @@ void MeasurePerformance(const std::vector<NTTFactoryBase*>& factories) {
   // Measure performance
   for (int64 logn = 2; logn <= kMaxLogN; ++logn) {
     std::cout << "| 2^" << std::setw(2) << logn << " |";
+
+    {
+      double perf = GetFFTPerf(logn - 1);
+      std::cout << std::setw(kColumnWidth) << std::fixed << std::setprecision(3)
+                << perf << " |";
+    }
 
     const int64 n = 1LL << logn;
     std::vector<NTT::ElementType> data(n);
@@ -62,6 +75,32 @@ void MeasurePerformance(const std::vector<NTTFactoryBase*>& factories) {
     }
     std::cout << "\n";
   }
+}
+
+double GetFFTPerf(int64 logn) {
+  static constexpr int64 kTimeLimitSec = 1;
+  static constexpr int64 kMaxLoopCount = 10000000;
+  const int64 n = 1LL << logn;
+  std::vector<Complex> data(n);
+  for (int64 i = 0; i < n; ++i) {
+    data[i] = Complex(2 * i, 2 * i + 1);
+  }
+  FFT fft(logn % 2, logn / 2);
+
+  auto start = Clock::now();
+  auto due_time = start + std::chrono::seconds(kTimeLimitSec);
+  int64 loop_count = 0;
+  for (loop_count = 0; loop_count < kMaxLoopCount && Clock::now() < due_time;
+       ++loop_count) {
+    fft.rft(data.data(), false);
+    fft.rft(data.data(), true);
+  }
+  auto end = Clock::now();
+
+  double duration_ms = std::chrono::duration_cast<MS>(end - start).count();
+  double average = duration_ms / loop_count;
+  double perf = average / (n * std::log2(n)) * 1e+6;
+  return perf;
 }
 
 double GetPerf(const NTT& ntt, std::vector<NTT::ElementType>& data) {

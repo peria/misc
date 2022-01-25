@@ -3,18 +3,7 @@ CXXFLAGS=-O2 -std=c++14
 
 #CXXFLAGS+=-O0 -g
 
-HEADS=ntt.h mod.h base.h
-HEADS+=ref.h
-HEADS+=refr2.h
-#HEADS+=pmp.h
-#HEADS+=dpmp.h
-#HEADS+=pmp2.h
-#HEADS+=pmp5.h
-#HEADS+=cooley.h
-#HEADS+=stockham_dit.h
-#HEADS+=stockham_dif.h
-#HEADS+=stockham6.h
-
+HEADS=$(shell ls *.h)
 .PHONY: all run check
 
 all: run
