@@ -1,7 +1,7 @@
 #pragma once
 
 #include "mod_base.h"
-// #include "mod_specific.h"
+#include "mod_specific.h"
 // #include "montgomery.h"
 
 template <uint64 P>
