@@ -24,8 +24,8 @@ void MeasurePerformance(const std::vector<NTTFactoryBase*>& factories);
 int main(int argc, const char* argv[]) {
   std::vector<NTTFactoryBase*> factories{
       new NTTFactory<RefNTT>,
+      // new NTTFactory<RefNoTable>,
       // new NTTFactory<RefRadix2>,
-      new NTTFactory<RefNoTable>,
   };
 
   if (VerifyRoutines(factories) || argc > 1) {
@@ -40,15 +40,12 @@ void MeasurePerformance(const std::vector<NTTFactoryBase*>& factories) {
   static constexpr int64 kColumnWidth = 10;
   static constexpr int64 kMaxLogN = 22;
 
-  std::cout << "Performance [ns/N logN]. Smaller is better.\n";
+  std::cout << "Time compared with FFT [NTT/FFT]. Smaller is better.\n";
   std::cout << "| #    |";
-  std::cout << std::setw(kColumnWidth) << "FFT"
-            << " |";
   for (auto* factory : factories)
     std::cout << std::setw(kColumnWidth) << factory->name() << " |";
   std::cout << "\n"
-            << "|------|"
-            << "----------:|";
+            << "|------|";
   for (auto* factory : factories)
     std::cout << "----------:|";
   std::cout << "\n";
@@ -56,12 +53,7 @@ void MeasurePerformance(const std::vector<NTTFactoryBase*>& factories) {
   // Measure performance
   for (int64 logn = 2; logn <= kMaxLogN; ++logn) {
     std::cout << "| 2^" << std::setw(2) << logn << " |";
-
-    {
-      double perf = GetFFTPerf(logn - 1);
-      std::cout << std::setw(kColumnWidth) << std::fixed << std::setprecision(3)
-                << perf << " |";
-    }
+    const double fft_perf = GetFFTPerf(logn - 1);
 
     const int64 n = 1LL << logn;
     std::vector<NTT::ElementType> data(n);
@@ -69,9 +61,9 @@ void MeasurePerformance(const std::vector<NTTFactoryBase*>& factories) {
       data[i] = uint64(i);
     for (auto* factory : factories) {
       std::unique_ptr<NTT> ntt(factory->Create(logn));
-      double perf = GetPerf(*ntt, data);
+      double ntt_perf = GetPerf(*ntt, data);
       std::cout << std::setw(kColumnWidth) << std::fixed << std::setprecision(3)
-                << perf << " |";
+                << (ntt_perf / fft_perf) << " |";
     }
     std::cout << "\n";
   }
