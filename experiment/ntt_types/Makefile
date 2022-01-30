@@ -16,3 +16,6 @@ check: ntt_bench
 
 ntt_bench: main.cc $(HEADS)
 	$(CXX) $(CXXFLAGS) $< -o $@
+
+clean:
+	rm -f ntt_bench

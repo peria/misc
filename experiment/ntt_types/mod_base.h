@@ -47,11 +47,6 @@ class Mod {
     return Mod<P>(uint64(prod % P));
   }
 
-  Mod<P>& operator>>=(int64 k) {
-    x_ >>= k;
-    return *this;
-  }
-
  private:
   uint64 x_;
 };

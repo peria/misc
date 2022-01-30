@@ -150,7 +150,8 @@ bool Verify(const NTT& ntt) {
     auto& xi = x[i];
     if (xi != i) {
       std::cerr << "Fail at " << i << "/" << n << "\n"
-                << "Actual: " << xi << "\n"
+                << "Actual: " << xi << " (0x" << std::hex << xi << std::dec
+                << ")\n"
                 << "Expect: " << i << "\n";
       pass = false;
     }
