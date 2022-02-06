@@ -8,6 +8,7 @@
 #include "fft.h"  // PMP
 #include "mod.h"
 #include "ntt.h"
+#include "pnt.h"
 #include "ref.h"
 #include "ref_no_table.h"
 #include "refr2.h"
@@ -23,7 +24,7 @@ void MeasurePerformance(const std::vector<NTTFactoryBase*>& factories);
 
 int main(int argc, const char* argv[]) {
   std::vector<NTTFactoryBase*> factories{
-      new NTTFactory<RefNTT>,
+      new NTTFactory<RefNTT>, new NTTFactory<PNT>,
       // new NTTFactory<RefNoTable>,
       // new NTTFactory<RefRadix2>,
   };
