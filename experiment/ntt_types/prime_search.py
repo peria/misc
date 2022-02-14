@@ -9,7 +9,12 @@ def main():
         if not is_prime(p):
             continue
         r = get_root(p)
-        print(p, hex(p), r)
+        ir = pow(r, p - 2, p)
+        r2 = 2**128 % p
+        inv = p
+        for _ in range(5):
+            inv = inv * (2 - inv * p) % 2 ** 64
+        print(hex(p), hex(r), hex(ir), hex(r2), hex(inv))
         m -= 1
         if m == 0:
             break
