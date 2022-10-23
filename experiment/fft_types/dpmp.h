@@ -1,62 +1,52 @@
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <vector>
-#include <algorithm>
 
 #include "complex.h"
-#include "fft.h"
+#include "fmt.h"
 
 // PMP with DFS algorthm. Focus on in-cache area.
 class DPMP : public FFT {
  public:
-  DPMP(int64 log2k)
-    : FFT(log2k % 2, log2k / 2) {
-    init();
-  }
-  ~DPMP() override = default;
+  DPMP(int64 log2n) : FFT(log2n % 2, log2n / 2) { init(); }
 
   static const char* name() { return "DPMP"; }
 
-  void dft(Complex* x, bool backward) const override {
-    if (backward)
-      idft(x);
-    else
-      dft(x);
+ private:
+  void Rft(Complex* x) const override {
+    const Complex& wq1 = wq;
+    const Complex& wq2 = wq1 * wq1;
+    const Complex& wq3 = wq2 * wq1;
+    for (int i = 0; i < n_ / 4; ++i) {
+      const Complex& w = ws[3 * i];
+      x[4 * i] *= w;
+      x[4 * i + 1] *= w * wq1;
+      x[4 * i + 2] *= w * wq2;
+      x[4 * i + 3] *= w * wq3;
+    }
+    Dft(x);
   }
 
-  void rft(Complex* x, bool backward) const override {
-    if (backward) {
-      dft(x, backward);
-      const Complex& wq1 = wq.conj();
-      const Complex& wq2 = wq1 * wq1;
-      const Complex& wq3 = wq2 * wq1;
-      for (int i = 0; i < n_ / 4; ++i) {
-        const Complex& w = ws[3 * i].conj();
-        x[4 * i] *= w;
-        x[4 * i + 1] *= w * wq1;
-        x[4 * i + 2] *= w * wq2;
-        x[4 * i + 3] *= w * wq3;
-      }
-    } else {
-      const Complex& wq1 = wq;
-      const Complex& wq2 = wq1 * wq1;
-      const Complex& wq3 = wq2 * wq1;
-      for (int i = 0; i < n_ / 4; ++i) {
-        const Complex& w = ws[3 * i];
-        x[4 * i] *= w;
-        x[4 * i + 1] *= w * wq1;
-        x[4 * i + 2] *= w * wq2;
-        x[4 * i + 3] *= w * wq3;
-      }
-      dft(x, backward);
+  void IRft(Complex* x) const override {
+    IDft(x);
+    const Complex& wq1 = wq.conj();
+    const Complex& wq2 = wq1 * wq1;
+    const Complex& wq3 = wq2 * wq1;
+    for (int i = 0; i < n_ / 4; ++i) {
+      const Complex& w = ws[3 * i].conj();
+      x[4 * i] *= w;
+      x[4 * i + 1] *= w * wq1;
+      x[4 * i + 2] *= w * wq2;
+      x[4 * i + 3] *= w * wq3;
     }
   }
 
  private:
   void init();
 
-  void dft(Complex* a) const {
+  void Dft(Complex* a) const override {
     auto* pw = ws.data();
     int64 l = 1;
     int64 m = n_;
@@ -87,7 +77,7 @@ class DPMP : public FFT {
     }
   }
 
-  void idft(Complex* a) const {
+  void IDft(Complex* a) const override {
     const int64 log4n_local = std::min<int64>(log4n_, 8);
     const int64 log4n_all = log4n_ - log4n_local;
     const int64 ll = 1LL << (log2n_ + log4n_local * 2);
@@ -190,7 +180,10 @@ class DPMP : public FFT {
     }
   }
 
-  void idft4(Complex* a, const int64 l, const int64 m, const Complex* ws) const {
+  void idft4(Complex* a,
+             const int64 l,
+             const int64 m,
+             const Complex* ws) const {
     for (int64 j = 0; j < l; ++j) {
       {
         int64 i0 = 4 * j * m;
@@ -242,15 +235,24 @@ void DPMP::init() {
   int64 l = 1;
   int64 m = n_;
   const double theta = -2 * M_PI / n_;
-  wq = Complex {std::cos(theta / 4), -std::sin(theta / 4)};
+  wq = Complex{std::cos(theta / 4), -std::sin(theta / 4)};
   for (int64 i = 0; i < log4n_; ++i) {
     m /= 4;
     for (int64 k = 0; k < m; ++k) {
       double t = theta * l * k;
-      ws.push_back(Complex {std::cos(t), std::sin(t)});
-      ws.push_back(Complex {std::cos(2*t), std::sin(2*t)});
-      ws.push_back(Complex {std::cos(3*t), std::sin(3*t)});
+      ws.push_back(Complex{std::cos(t), std::sin(t)});
+      ws.push_back(Complex{std::cos(2 * t), std::sin(2 * t)});
+      ws.push_back(Complex{std::cos(3 * t), std::sin(3 * t)});
     }
     l *= 4;
   }
 }
+
+class DPMPFactory : public FMTFactory {
+ public:
+  // logn is log of length of integer
+  std::shared_ptr<FMT> Create(int logn) const {
+    return std::dynamic_pointer_cast<FMT>(std::make_shared<DPMP>(logn + 1));
+  }
+  const char* name() const { return "DPMP"; }
+};
