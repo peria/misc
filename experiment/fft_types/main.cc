@@ -7,6 +7,9 @@
 #include "fmt.h"
 #include "integer.h"
 
+#include "ct_dif.h"
+#include "ct_dit.h"
+#include "ddpmp.h"
 #include "dpmp.h"
 
 using FactoryVec = std::vector<std::shared_ptr<FMTFactory>>;
@@ -17,6 +20,9 @@ void MeasurePerformance(const FactoryVec& factories);
 int main() {
   FactoryVec factories{
       std::make_unique<DPMPFactory>(),
+      std::make_unique<DDPMPFactory>(),
+      std::make_unique<CTDitFactory>(),
+      std::make_unique<CTDifFactory>(),
   };
   if (!Test(factories)) {
     return 0;
@@ -27,13 +33,31 @@ int main() {
   return 0;
 }
 
-bool Test(const FMTFactory& factory) {
+bool Integer::Test(const FMTFactory& factory) {
+  static constexpr int kMaxLogN = 21;
+  for (int logn = 3; logn <= kMaxLogN; ++logn) {
+    auto&& fmt = factory.Create(logn);
+    int n = 1 << logn;
+    std::vector<Digit> x(n), y(n);
+    for (int i = 0; i < n / 2; ++i) {
+      x[i] = 1;
+      y[i] = 1;
+    }
+    Convolution(*fmt, n, x, y);
+    for (int i = 0; i < n / 2; ++i) {
+      if (x[i] != i + 1) {
+        std::cerr << "x[" << i << " / " << n << "] = " << x[i]
+                  << " != " << (i + 1) << "\n";
+        return false;
+      }
+    }
+  }
   return true;
 }
 
 bool Test(const FactoryVec& factories) {
   for (auto&& factory : factories) {
-    if (!Test(*factory)) {
+    if (!Integer::Test(*factory)) {
       std::cerr << factory->name() << " has some problems.\n";
       return false;
     }
@@ -75,7 +99,7 @@ int Integer::MeasurePerformance(const FMTFactory& factory, int logn) {
 
   auto&& fmt = factory.Create(logn);
   int n = 1 << logn;
-  std::vector<Digit> x(n, 123), y(n, 123), z(n);
+  std::vector<Digit> x(n, 123), y(n, 123);
 
   auto start = Clock::now();
   auto due = start + std::chrono::seconds(kTimeLimitSec);

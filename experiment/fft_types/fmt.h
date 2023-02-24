@@ -13,7 +13,10 @@ class FMT {
   enum class Type { kFFT, kNTT };
 
   FMT(int log2n, int log4n)
-      : log2n_(log2n), log4n_(log4n), n_(1 << (log2n_ + log4n_ * 2)) {}
+      : logn_(log2n + log4n * 2),
+        log2n_(log2n),
+        log4n_(log4n),
+        n_(1 << logn_) {}
   virtual ~FMT() = default;
   virtual Type type() const = 0;
 
@@ -23,6 +26,7 @@ class FMT {
   }
 
  protected:
+  const int logn_;
   const int log2n_;
   const int log4n_;
   const int n_;
@@ -36,8 +40,6 @@ class FFT : public FMT {
   void Convolution(std::vector<Complex>& x, std::vector<Complex>& y) const;
 
  protected:
-  virtual void Dft(Complex*) const = 0;
-  virtual void IDft(Complex*) const = 0;
   virtual void Rft(Complex*) const = 0;
   virtual void IRft(Complex*) const = 0;
 };
