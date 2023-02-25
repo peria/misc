@@ -10,48 +10,47 @@
 
 class FMT {
  public:
-  enum class Type { kFFT, kNTT };
-
-  FMT(int log2n, int log4n)
-      : logn_(log2n + log4n * 2),
-        log2n_(log2n),
-        log4n_(log4n),
-        n_(1 << logn_) {}
+  FMT(int logn)
+      : logn_(logn), log2n_(logn % 2), log4n_(logn / 2), n_(1 << logn) {}
   virtual ~FMT() = default;
-  virtual Type type() const = 0;
 
-  template <typename T>
-  const T& As() const {
-    return *dynamic_cast<const T*>(this);
-  }
+  void Convolute(Complex*, Complex*) const;
+  bool Test() const;
+
+  // Returns the number of real number operations
+  double GetFlops() const { return 8.5 * n_ * log4n_ + 5.0 * n_ * log2n_; }
 
  protected:
+  virtual void Rft(Complex*) const = 0;
+  virtual void IRft(Complex*) const = 0;
+
   const int logn_;
   const int log2n_;
   const int log4n_;
   const int n_;
 };
 
-class FFT : public FMT {
+class FMTFactoryBase {
  public:
-  FFT(int log2n, int log4n = 0) : FMT(log2n, log4n) {}
-  Type type() const override { return Type::kFFT; }
+  virtual ~FMTFactoryBase() = default;
+  double MeasureConvPerf(int logn) const;
 
-  void Convolution(std::vector<Complex>& x, std::vector<Complex>& y) const;
-
- protected:
-  virtual void Rft(Complex*) const = 0;
-  virtual void IRft(Complex*) const = 0;
-};
-
-class NTT : public FMT {
-  Type type() const override { return Type::kNTT; }
-};
-
-class FMTFactory {
- public:
-  virtual ~FMTFactory() = default;
-  // logn is log of length of integer
-  virtual std::shared_ptr<FMT> Create(int logn) const = 0;
+  virtual std::unique_ptr<const FMT> Create(int logn) const = 0;
   virtual const char* name() const = 0;
+};
+
+template <typename T>
+class FMTFactory : public FMTFactoryBase {
+ public:
+  ~FMTFactory<T>() override = default;
+
+  static std::unique_ptr<FMTFactoryBase> GetFactory() {
+    return std::unique_ptr<FMTFactoryBase>(new FMTFactory<T>());
+  }
+
+  std::unique_ptr<const FMT> Create(int logn) const override {
+    return std::unique_ptr<const FMT>(new T(logn));
+  }
+
+  const char* name() const override { return T::name(); }
 };
