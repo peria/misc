@@ -67,16 +67,22 @@ void DIT::Dft(Complex* x) const {
   int l = 1;
   for (int i = 0; i < logn_; ++i) {
     m /= 2;
-    for (int j = 0; j < l; ++j) {
+    for (int j = 0, r = 0; j < l; ++j) {
+      double t = theta * r;
+      Complex w1(std::cos(t), std::sin(t));
       for (int k = 0; k < m; ++k) {
-        double t = theta * k * l;
-        Complex w1(std::cos(t), std::sin(t));
         int k0 = 2 * j * m + k;
         int k1 = 2 * j * m + m + k;
         Complex x0 = x[k0];
-        Complex x1 = x[k1];
+        Complex x1 = x[k1] * w1;
         x[k0] = x0 + x1;
-        x[k1] = (x0 - x1) * w1;
+        x[k1] = x0 - x1;
+      }
+      for (int b = n_ / 4; b; b >>= 1) {
+        r ^= b;
+        if (r & b) {
+          break;
+        }
       }
     }
     l *= 2;
@@ -90,16 +96,22 @@ void DIT::IDft(Complex* x) const {
   int l = n_;
   for (int i = 0; i < logn_; ++i) {
     l /= 2;
-    for (int j = 0; j < l; ++j) {
+    for (int j = 0, r = 0; j < l; ++j) {
+      double t = theta * r;
+      Complex w1(std::cos(t), std::sin(t));
       for (int k = 0; k < m; ++k) {
-        double t = theta * k * l;
-        Complex w1(std::cos(t), std::sin(t));
         int k0 = 2 * j * m + k;
         int k1 = 2 * j * m + m + k;
         Complex x0 = x[k0];
-        Complex x1 = x[k1] * w1.conj();
+        Complex x1 = x[k1];
         x[k0] = x0 + x1;
-        x[k1] = x0 - x1;
+        x[k1] = (x0 - x1) * w1.conj();
+      }
+      for (int b = n_ / 4; b; b >>= 1) {
+        r ^= b;
+        if (r & b) {
+          break;
+        }
       }
     }
     m *= 2;
