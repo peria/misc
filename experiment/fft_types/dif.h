@@ -22,11 +22,18 @@ class DIF : public FMT {
 
 void DIF::Init() {
   const double theta = 2 * M_PI / n_;
-  for (int i = 0; i < n_ / 4; ++i) {
-    double t = theta * i;
-    Complex w(std::cos(t), std::sin(t));
-    ws_.push_back(w);
+  int l = 1;
+  int m = n_;
+  for (int i = 0; i < logn_; ++i) {
+    m /= 2;
+    for (int k = 0; k < m; ++k) {
+      double t = theta * k * l;
+      Complex w1(std::cos(t), std::sin(t));
+      ws_.push_back(w1);
+    }
+    l *= 2;
   }
+
   qw_ = Complex(std::cos(theta / 4), std::sin(theta / 4));
 }
 
@@ -61,16 +68,14 @@ void DIF::IRft(Complex* x) const {
 }
 
 void DIF::Dft(Complex* x) const {
-  const double theta = 2 * M_PI / n_;
-
+  const Complex* wp = ws_.data();
   int m = n_;
   int l = 1;
   for (int i = 0; i < logn_; ++i) {
     m /= 2;
     for (int j = 0; j < l; ++j) {
       for (int k = 0; k < m; ++k) {
-        double t = theta * k * l;
-        Complex w1(std::cos(t), std::sin(t));
+        const Complex& w1 = wp[k];
         int k0 = 2 * j * m + k;
         int k1 = 2 * j * m + m + k;
         Complex x0 = x[k0];
@@ -79,6 +84,7 @@ void DIF::Dft(Complex* x) const {
         x[k1] = (x0 - x1) * w1;
       }
     }
+    wp += m;
     l *= 2;
   }
 }
@@ -86,14 +92,15 @@ void DIF::Dft(Complex* x) const {
 void DIF::IDft(Complex* x) const {
   const double theta = 2 * M_PI / n_;
 
+  const Complex* wp = ws_.data() + ws_.size();
   int m = 1;
   int l = n_;
   for (int i = 0; i < logn_; ++i) {
     l /= 2;
+    wp -= m;
     for (int j = 0; j < l; ++j) {
       for (int k = 0; k < m; ++k) {
-        double t = theta * k * l;
-        Complex w1(std::cos(t), std::sin(t));
+        const Complex& w1 = wp[k];
         int k0 = 2 * j * m + k;
         int k1 = 2 * j * m + m + k;
         Complex x0 = x[k0];
