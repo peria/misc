@@ -16,6 +16,11 @@ class DIT : public FMT {
   void Dft(Complex*) const;
   void IDft(Complex*) const;
 
+  void Dft2(Complex*, const int, const int) const;
+  void IDft2(Complex*, const int, const int) const;
+  void Dft4(Complex*, const int, const int) const;
+  void IDft4(Complex*, const int, const int) const;
+
   std::vector<Complex> rws_;
   std::vector<Complex> ws_;
   Complex qw_;
@@ -77,20 +82,15 @@ void DIT::IRft(Complex* x) const {
 void DIT::Dft(Complex* x) const {
   int m = n_;
   int l = 1;
-  for (int i = 0; i < logn_; ++i) {
+  for (int i = 0; i < log2n_; ++i) {
     m /= 2;
-    for (int j = 0; j < l; ++j) {
-      const Complex& w1 = ws_[j];
-      for (int k = 0; k < m; ++k) {
-        int k0 = 2 * j * m + k;
-        int k1 = 2 * j * m + m + k;
-        Complex x0 = x[k0];
-        Complex x1 = x[k1] * w1;
-        x[k0] = x0 + x1;
-        x[k1] = x0 - x1;
-      }
-    }
+    Dft2(x, m, l);
     l *= 2;
+  }
+  for (int i = 0; i < log4n_; ++i) {
+    m /= 4;
+    Dft4(x, m, l);
+    l *= 4;
   }
 }
 
@@ -99,22 +99,66 @@ void DIT::IDft(Complex* x) const {
   int l = n_;
   for (int i = 0; i < logn_; ++i) {
     l /= 2;
-    for (int j = 0; j < l; ++j) {
-      const Complex w1 = ws_[j].conj();
-      for (int k = 0; k < m; ++k) {
-        int k0 = 2 * j * m + k;
-        int k1 = 2 * j * m + m + k;
-        Complex x0 = x[k0];
-        Complex x1 = x[k1];
-        x[k0] = x0 + x1;
-        x[k1] = (x0 - x1) * w1;
-      }
-    }
+    IDft2(x, m, l);
     m *= 2;
   }
 
   double inverse = 1.0 / n_;
   for (int i = 0; i < n_; ++i) {
     x[i] *= inverse;
+  }
+}
+
+void DIT::Dft2(Complex* x, const int m, const int l) const {
+  for (int j = 0; j < l; ++j) {
+    const Complex& w1 = ws_[j];
+    for (int k = 0; k < m; ++k) {
+      int k0 = 2 * j * m + k;
+      int k1 = 2 * j * m + m + k;
+      Complex x0 = x[k0];
+      Complex x1 = x[k1] * w1;
+      x[k0] = x0 + x1;
+      x[k1] = x0 - x1;
+    }
+  }
+}
+
+void DIT::IDft2(Complex* x, const int m, const int l) const {
+  for (int j = 0; j < l; ++j) {
+    const Complex w1 = ws_[j].conj();
+    for (int k = 0; k < m; ++k) {
+      int k0 = 2 * j * m + k;
+      int k1 = 2 * j * m + m + k;
+      Complex x0 = x[k0];
+      Complex x1 = x[k1];
+      x[k0] = x0 + x1;
+      x[k1] = (x0 - x1) * w1;
+    }
+  }
+}
+
+void DIT::Dft4(Complex* x, const int m, const int l) const {
+  for (int j = 0; j < l; ++j) {
+    const Complex& w1 = ws_[2 * j];
+    const Complex& w2 = ws_[j];
+    const Complex w3 = w2 * w1;
+    for (int k = 0; k < m; ++k) {
+      int k0 = 4 * j * m + k;
+      int k1 = 4 * j * m + m + k;
+      int k2 = 4 * j * m + 2 * m + k;
+      int k3 = 4 * j * m + 3 * m + k;
+      const Complex& x0 = x[k0];
+      const Complex x1 = x[k1] * w1;
+      const Complex x2 = x[k2] * w2;
+      const Complex x3 = x[k3] * w3;
+      const Complex y0 = x0 + x2;
+      const Complex y1 = x1 + x3;
+      const Complex y2 = x0 - x2;
+      const Complex y3 = (x1 - x3).i();
+      x[k0] = y0 + y1;
+      x[k1] = y0 - y1;
+      x[k2] = y2 + y3;
+      x[k3] = y2 - y3;
+    }
   }
 }
