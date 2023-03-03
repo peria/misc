@@ -12,6 +12,10 @@ using FactoryVec = std::vector<std::shared_ptr<FMTFactoryBase>>;
 bool TestFMTs(const FactoryVec& factories);
 void MeasurePerformance(const FactoryVec& factories);
 
+namespace {
+constexpr int kMaxLogN = 23;
+}
+
 int main() {
   FactoryVec factories{
       FMTFactory<DIT>::GetFactory(),
@@ -28,7 +32,6 @@ int main() {
 }
 
 bool TestFMTs(const FactoryVec& factories) {
-  static constexpr int kMaxLogN = 21;
   for (auto&& factory : factories) {
     for (int logn = 2; logn <= kMaxLogN; ++logn) {
       auto&& fmt = factory->Create(logn);
@@ -44,8 +47,6 @@ bool TestFMTs(const FactoryVec& factories) {
 }
 
 void MeasurePerformance(const FactoryVec& factories) {
-  static constexpr int kMaxLogN = 21;
-
   // Header (Name)
   std::cerr << "    ";
   for (auto&& factory : factories) {
