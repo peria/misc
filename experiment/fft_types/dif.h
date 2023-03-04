@@ -16,6 +16,11 @@ class DIF : public FMT {
   void Dft(Complex*) const;
   void IDft(Complex*) const;
 
+  void Dft2(Complex*, const int, const int, const Complex*) const;
+  void IDft2(Complex*, const int, const int, const Complex*) const;
+  void Dft4(Complex*, const int, const int, const Complex*) const;
+  void IDft4(Complex*, const int, const int, const Complex*) const;
+
   std::vector<Complex> ws_;
   Complex qw_;
 };
@@ -73,47 +78,53 @@ void DIF::Dft(Complex* x) const {
   int l = 1;
   for (int i = 0; i < logn_; ++i) {
     m /= 2;
-    for (int j = 0; j < l; ++j) {
-      for (int k = 0; k < m; ++k) {
-        const Complex& w1 = wp[k];
-        int k0 = 2 * j * m + k;
-        int k1 = 2 * j * m + m + k;
-        Complex x0 = x[k0];
-        Complex x1 = x[k1];
-        x[k0] = x0 + x1;
-        x[k1] = (x0 - x1) * w1;
-      }
-    }
+    Dft2(x, m, l, wp);
     wp += m;
     l *= 2;
   }
 }
 
 void DIF::IDft(Complex* x) const {
-  const double theta = 2 * M_PI / n_;
-
   const Complex* wp = ws_.data() + ws_.size();
   int m = 1;
   int l = n_;
   for (int i = 0; i < logn_; ++i) {
     l /= 2;
     wp -= m;
-    for (int j = 0; j < l; ++j) {
-      for (int k = 0; k < m; ++k) {
-        const Complex& w1 = wp[k];
-        int k0 = 2 * j * m + k;
-        int k1 = 2 * j * m + m + k;
-        Complex x0 = x[k0];
-        Complex x1 = x[k1] * w1.conj();
-        x[k0] = x0 + x1;
-        x[k1] = x0 - x1;
-      }
-    }
+    IDft2(x, m, l, wp);
     m *= 2;
   }
 
   double inverse = 1.0 / n_;
   for (int i = 0; i < n_; ++i) {
     x[i] *= inverse;
+  }
+}
+
+void DIF::Dft2(Complex* x, const int m, const int l, const Complex* wp) const {
+  for (int j = 0; j < l; ++j) {
+    for (int k = 0; k < m; ++k) {
+      const Complex& w1 = wp[k];
+      int k0 = 2 * j * m + k;
+      int k1 = 2 * j * m + m + k;
+      Complex x0 = x[k0];
+      Complex x1 = x[k1];
+      x[k0] = x0 + x1;
+      x[k1] = (x0 - x1) * w1;
+    }
+  }
+}
+
+void DIF::IDft2(Complex* x, const int m, const int l, const Complex* wp) const {
+  for (int j = 0; j < l; ++j) {
+    for (int k = 0; k < m; ++k) {
+      const Complex& w1 = wp[k];
+      int k0 = 2 * j * m + k;
+      int k1 = 2 * j * m + m + k;
+      Complex x0 = x[k0];
+      Complex x1 = x[k1] * w1.conj();
+      x[k0] = x0 + x1;
+      x[k1] = x0 - x1;
+    }
   }
 }
