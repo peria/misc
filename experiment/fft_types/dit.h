@@ -104,7 +104,7 @@ void DIT::IDft(Complex* x) const {
   }
   for (int i = 0; i < log2n_; ++i) {
     l /= 2;
-    IDft2(x, m, l);
+    Dft2(x, m, l);
     m *= 2;
   }
 
@@ -115,30 +115,13 @@ void DIT::IDft(Complex* x) const {
 }
 
 void DIT::Dft2(Complex* x, const int m, const int l) const {
-  for (int j = 0; j < l; ++j) {
-    const Complex& w1 = ws_[j];
-    for (int k = 0; k < m; ++k) {
-      int k0 = 2 * j * m + k;
-      int k1 = 2 * j * m + m + k;
-      Complex x0 = x[k0];
-      Complex x1 = x[k1] * w1;
-      x[k0] = x0 + x1;
-      x[k1] = x0 - x1;
-    }
-  }
-}
-
-void DIT::IDft2(Complex* x, const int m, const int l) const {
-  for (int j = 0; j < l; ++j) {
-    const Complex w1 = ws_[j].conj();
-    for (int k = 0; k < m; ++k) {
-      int k0 = 2 * j * m + k;
-      int k1 = 2 * j * m + m + k;
-      Complex x0 = x[k0];
-      Complex x1 = x[k1];
-      x[k0] = x0 + x1;
-      x[k1] = (x0 - x1) * w1;
-    }
+  for (int k = 0; k < m; ++k) {
+    int k0 = k;
+    int k1 = m + k;
+    Complex x0 = x[k0];
+    Complex x1 = x[k1];
+    x[k0] = x0 + x1;
+    x[k1] = x0 - x1;
   }
 }
 
