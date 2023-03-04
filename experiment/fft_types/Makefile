@@ -5,8 +5,7 @@ CXXFLAGS=-O2 -std=c++14
 
 SRCS=main.cc fmt.cc
 HEADS=fmt.h complex.h
-HEADS+=dit.h
-OBJS=$(SRCS:.cc=.o)
+HEADS+=dit.h dif.h
 
 all: test
 
@@ -16,5 +15,5 @@ run: benchmark
 test: benchmark
 	./$< test
 
-benchmark: $(OBJS) $(HEADS)
+benchmark: $(SRCS) $(HEADS)
 	$(CXX) $(CXXFLAGS) $(SRCS) -o $@

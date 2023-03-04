@@ -76,7 +76,13 @@ void DIF::Dft(Complex* x) const {
   const Complex* wp = ws_.data();
   int m = n_;
   int l = 1;
-  for (int i = 0; i < logn_; ++i) {
+  for (int i = 0; i < log4n_; ++i) {
+    m /= 4;
+    Dft4(x, m, l, wp);
+    wp += 3 * m;
+    l *= 4;
+  }
+  for (int i = 0; i < log2n_; ++i) {
     m /= 2;
     Dft2(x, m, l, wp);
     wp += m;
@@ -88,11 +94,17 @@ void DIF::IDft(Complex* x) const {
   const Complex* wp = ws_.data() + ws_.size();
   int m = 1;
   int l = n_;
-  for (int i = 0; i < logn_; ++i) {
+  for (int i = 0; i < log2n_; ++i) {
     l /= 2;
     wp -= m;
-    IDft2(x, m, l, wp);
+    Dft2(x, m, l, wp);
     m *= 2;
+  }
+  for (int i = 0; i < log4n_; ++i) {
+    l /= 4;
+    wp -= 3 * m;
+    IDft4(x, m, l, wp);
+    m *= 4;
   }
 
   double inverse = 1.0 / n_;
@@ -103,28 +115,66 @@ void DIF::IDft(Complex* x) const {
 
 void DIF::Dft2(Complex* x, const int m, const int l, const Complex* wp) const {
   for (int j = 0; j < l; ++j) {
+    const Complex& w1 = wp[0];
+    int k0 = 2 * j;
+    int k1 = 2 * j + 1;
+    Complex x0 = x[k0];
+    Complex x1 = x[k1];
+    x[k0] = x0 + x1;
+    x[k1] = x0 - x1;
+  }
+}
+
+void DIF::Dft4(Complex* x, const int m, const int l, const Complex* wp) const {
+  const Complex* wp2 = wp + 2 * m;
+  for (int j = 0; j < l; ++j) {
     for (int k = 0; k < m; ++k) {
       const Complex& w1 = wp[k];
-      int k0 = 2 * j * m + k;
-      int k1 = 2 * j * m + m + k;
-      Complex x0 = x[k0];
-      Complex x1 = x[k1];
-      x[k0] = x0 + x1;
-      x[k1] = (x0 - x1) * w1;
+      const Complex& w2 = wp2[k];
+      const Complex& w3 = w1 * w2;
+      int k0 = 4 * j * m + k;
+      int k1 = 4 * j * m + m + k;
+      int k2 = 4 * j * m + 2 * m + k;
+      int k3 = 4 * j * m + 3 * m + k;
+      const Complex& x0 = x[k0];
+      const Complex& x1 = x[k1];
+      const Complex& x2 = x[k2];
+      const Complex& x3 = x[k3];
+      const Complex y0 = x0 + x2;
+      const Complex y1 = x1 + x3;
+      const Complex y2 = x0 - x2;
+      const Complex y3 = (x1 - x3).i();
+      x[k0] = y0 + y1;
+      x[k1] = (y0 - y1) * w2;
+      x[k2] = (y2 + y3) * w1;
+      x[k3] = (y2 - y3) * w3;
     }
   }
 }
 
-void DIF::IDft2(Complex* x, const int m, const int l, const Complex* wp) const {
+void DIF::IDft4(Complex* x, const int m, const int l, const Complex* wp) const {
+  const Complex* wp2 = wp + 2 * m;
   for (int j = 0; j < l; ++j) {
     for (int k = 0; k < m; ++k) {
-      const Complex& w1 = wp[k];
-      int k0 = 2 * j * m + k;
-      int k1 = 2 * j * m + m + k;
+      const Complex w1 = wp[k].conj();
+      const Complex w2 = wp2[k].conj();
+      const Complex w3 = w1 * w2;
+      int k0 = 4 * j * m + k;
+      int k1 = 4 * j * m + m + k;
+      int k2 = 4 * j * m + 2 * m + k;
+      int k3 = 4 * j * m + 3 * m + k;
       Complex x0 = x[k0];
-      Complex x1 = x[k1] * w1.conj();
-      x[k0] = x0 + x1;
-      x[k1] = x0 - x1;
+      Complex x1 = x[k1] * w2;
+      Complex x2 = x[k2] * w1;
+      Complex x3 = x[k3] * w3;
+      Complex y0 = x0 + x1;
+      Complex y1 = x0 - x1;
+      Complex y2 = x2 + x3;
+      Complex y3 = (x3 - x2).i();
+      x[k0] = y0 + y2;
+      x[k1] = y1 + y3;
+      x[k2] = y0 - y2;
+      x[k3] = y1 - y3;
     }
   }
 }
