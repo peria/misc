@@ -8,10 +8,13 @@ HEADS=fmt.h complex.h
 HEADS+=dit.h
 OBJS=$(SRCS:.cc=.o)
 
-all: run
+all: test
 
 run: benchmark
 	./$<
+
+test: benchmark
+	./$< test
 
 benchmark: $(OBJS) $(HEADS)
 	$(CXX) $(CXXFLAGS) $(SRCS) -o $@

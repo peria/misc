@@ -16,13 +16,13 @@ namespace {
 constexpr int kMaxLogN = 23;
 }
 
-int main() {
+int main(int argc, const char**) {
   FactoryVec factories{
       FMTFactory<DIT>::GetFactory(),
       FMTFactory<DIF>::GetFactory(),
   };
 
-  if (!TestFMTs(factories)) {
+  if (!TestFMTs(factories) || argc > 1) {
     return 0;
   }
 
