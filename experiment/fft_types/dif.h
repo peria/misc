@@ -5,6 +5,7 @@
 class DIF : public FMT {
  public:
   DIF(int logn) : FMT(logn) { Init(); }
+  double GetMemory() const override;
 
   static const char* name() { return "DIF"; }
 
@@ -24,6 +25,10 @@ class DIF : public FMT {
   std::vector<Complex> ws_;
   Complex qw_;
 };
+
+double DIF::GetMemory() const {
+  return (ws_.size() + 1) * sizeof(Complex) / 1024.0 / 1024.0;
+}
 
 void DIF::Init() {
   const double theta = 2 * M_PI / n_;

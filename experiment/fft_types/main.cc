@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 
+#include "ddit.h"
 #include "dif.h"
 #include "dit.h"
 #include "fmt.h"
@@ -18,8 +19,9 @@ constexpr int kMaxLogN = 23;
 
 int main(int argc, const char**) {
   FactoryVec factories{
-      FMTFactory<DIT>::GetFactory(),
       FMTFactory<DIF>::GetFactory(),
+      FMTFactory<DIT>::GetFactory(),
+      FMTFactory<DDIT>::GetFactory(),
   };
 
   if (!TestFMTs(factories) || argc > 1) {
@@ -51,6 +53,20 @@ void MeasurePerformance(const FactoryVec& factories) {
   std::cerr << "    ";
   for (auto&& factory : factories) {
     std::cerr << " | " << std::setw(4) << factory->name();
+  }
+  std::cerr << std::endl;
+
+  std::cerr << "-----";
+  for (auto&& factory : factories) {
+    std::cerr << "+------";
+  }
+  std::cerr << std::endl;
+
+  std::cerr << "Mmry";
+  for (auto&& factory : factories) {
+    auto&& fmt = factory->Create(kMaxLogN);
+    int memory = fmt->GetMemory();
+    std::cerr << " | " << std::setw(4) << memory;
   }
   std::cerr << std::endl;
 

@@ -2,12 +2,12 @@
 
 #include <cmath>
 
-class DIT : public FMT {
+class DDIT : public FMT {
  public:
-  DIT(int logn) : FMT(logn) { Init(); }
+  DDIT(int logn) : FMT(logn) { Init(); }
   double GetMemory() const override;
 
-  static const char* name() { return "DIT"; }
+  static const char* name() { return "DDIT"; }
 
  private:
   void Rft(Complex*) const override;
@@ -17,44 +17,48 @@ class DIT : public FMT {
   void Dft(Complex*) const;
   void IDft(Complex*) const;
 
-  void Dft2(Complex*, const int, const int) const;
-  void IDft2(Complex*, const int, const int) const;
-  void Dft4(Complex*, const int, const int) const;
-  void IDft4(Complex*, const int, const int) const;
+  void Dft2(Complex*, const int, const int, const int, const int) const;
+  void IDft2(Complex*, const int, const int, const int, const int) const;
+  void Dft4(Complex*, const int, const int, const int, const int) const;
+  void IDft4(Complex*, const int, const int, const int, const int) const;
 
   std::vector<Complex> rws_;
   std::vector<Complex> ws_;
   Complex qw_;
 };
 
-double DIT::GetMemory() const {
+double DDIT::GetMemory() const {
   return (rws_.size() + ws_.size() + 1) * sizeof(Complex) / 1024.0 / 1024.0;
 }
 
-void DIT::Init() {
-  const double theta = 2 * M_PI / n_;
-  for (int i = 0; i < n_ / 4; ++i) {
-    double t = theta * i;
-    Complex w(std::cos(t), std::sin(t));
-    rws_.push_back(w);
-  }
-
-  for (int j = 0, r = 0; j < n_ / 4; ++j) {
-    double t = theta * r;
-    Complex w1(std::cos(t), std::sin(t));
-    ws_.push_back(w1);
-    for (int b = n_ / 8; b; b >>= 1) {
-      r ^= b;
-      if (r & b) {
-        break;
+void DDIT::Init() {
+  {
+    double theta = 2 * M_PI / 8;
+    ws_.push_back(Complex(1, 0));
+    ws_.push_back(Complex(std::cos(theta), std::sin(theta)));
+    for (int i = 1; i < logn_ - 2; ++i) {
+      int m = 1 << i;
+      theta *= 0.5;
+      Complex w(std::cos(theta), std::sin(theta));
+      for (int j = 0; j < m; ++j) {
+        ws_.push_back(w * ws_[j]);
       }
     }
   }
 
-  qw_ = Complex(std::cos(theta / 4), std::sin(theta / 4));
+  {
+    const double theta = 2 * M_PI / n_;
+    for (int i = 0; i < n_ / 4; ++i) {
+      double t = theta * i;
+      Complex w(std::cos(t), std::sin(t));
+      rws_.push_back(w);
+    }
+    const double qtheta = theta / 4;
+    qw_ = Complex(std::cos(qtheta), std::sin(qtheta));
+  }
 }
 
-void DIT::Rft(Complex* x) const {
+void DDIT::Rft(Complex* x) const {
   const Complex& qw1 = qw_;
   const Complex qw2 = qw1 * qw1;
   const Complex qw3 = qw2 * qw1;
@@ -68,7 +72,7 @@ void DIT::Rft(Complex* x) const {
   Dft(x);
 }
 
-void DIT::IRft(Complex* x) const {
+void DDIT::IRft(Complex* x) const {
   const Complex qw1 = qw_.conj();
   const Complex qw2 = qw1 * qw1;
   const Complex qw3 = qw2 * qw1;
@@ -82,32 +86,32 @@ void DIT::IRft(Complex* x) const {
   }
 }
 
-void DIT::Dft(Complex* x) const {
+void DDIT::Dft(Complex* x) const {
   int m = n_;
   int l = 1;
   for (int i = 0; i < log2n_; ++i) {
     m /= 2;
-    Dft2(x, m, l);
+    Dft2(x, m, l, 0, l);
     l *= 2;
   }
   for (int i = 0; i < log4n_; ++i) {
     m /= 4;
-    Dft4(x, m, l);
+    Dft4(x, m, l, 0, l);
     l *= 4;
   }
 }
 
-void DIT::IDft(Complex* x) const {
+void DDIT::IDft(Complex* x) const {
   int m = 1;
   int l = n_;
   for (int i = 0; i < log4n_; ++i) {
     l /= 4;
-    IDft4(x, m, l);
+    IDft4(x, m, l, 0, l);
     m *= 4;
   }
   for (int i = 0; i < log2n_; ++i) {
     l /= 2;
-    Dft2(x, m, l);
+    Dft2(x, m, l, 0, l);
     m *= 2;
   }
 
@@ -117,19 +121,26 @@ void DIT::IDft(Complex* x) const {
   }
 }
 
-void DIT::Dft2(Complex* x, const int m, const int l) const {
+void DDIT::Dft2(Complex* x,
+                const int m,
+                const int l,
+                const int,
+                const int) const {
   for (int k = 0; k < m; ++k) {
     int k0 = k;
     int k1 = m + k;
-    Complex x0 = x[k0];
-    Complex x1 = x[k1];
-    x[k0] = x0 + x1;
-    x[k1] = x0 - x1;
+    Complex x1 = x[k0] - x[k1];
+    x[k0] += x[k1];
+    x[k1] = x1;
   }
 }
 
-void DIT::Dft4(Complex* x, const int m, const int l) const {
-  for (int j = 0; j < l; ++j) {
+void DDIT::Dft4(Complex* x,
+                const int m,
+                const int l,
+                const int j0,
+                const int jn) const {
+  for (int j = j0; j < jn; ++j) {
     const Complex& w1 = ws_[j];
     const Complex w2 = w1 * w1;
     const Complex w3 = w2 * w1;
@@ -154,8 +165,12 @@ void DIT::Dft4(Complex* x, const int m, const int l) const {
   }
 }
 
-void DIT::IDft4(Complex* x, const int m, const int l) const {
-  for (int j = 0; j < l; ++j) {
+void DDIT::IDft4(Complex* x,
+                 const int m,
+                 const int l,
+                 const int j0,
+                 const int jn) const {
+  for (int j = j0; j < jn; ++j) {
     const Complex w1 = ws_[j].conj();
     const Complex w2 = w1 * w1;
     const Complex w3 = w1 * w2;

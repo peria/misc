@@ -14,6 +14,16 @@ struct Complex {
   Complex(double re, double im) : real(re), imag(im) {}
   Complex& operator=(const Complex&) = default;
   Complex& operator=(Complex&&) = default;
+  inline Complex& operator+=(const Complex& a) {
+    real += a.real;
+    imag += a.imag;
+    return *this;
+  }
+  inline Complex& operator-=(const Complex& a) {
+    real -= a.real;
+    imag -= a.imag;
+    return *this;
+  }
   inline Complex& operator*=(const Complex& a) {
     double r = real * a.real - imag * a.imag;
     double i = real * a.imag + imag * a.real;

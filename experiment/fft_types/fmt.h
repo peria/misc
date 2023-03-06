@@ -19,6 +19,7 @@ class FMT {
 
   // Returns the number of real number operations
   double GetFlops() const { return 8.5 * n_ * log4n_ + 5.0 * n_ * log2n_; }
+  virtual double GetMemory() const = 0;
 
  protected:
   virtual void Rft(Complex*) const = 0;
