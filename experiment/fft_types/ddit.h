@@ -87,6 +87,7 @@ void DDIT::IRft(Complex* x) const {
 }
 
 void DDIT::Dft(Complex* x) const {
+  static constexpr int kCacheSize = 1 << 18;
   int m = n_;
   int l = 1;
   for (int i = 0; i < log2n_; ++i) {
@@ -94,10 +95,33 @@ void DDIT::Dft(Complex* x) const {
     Dft2(x, m, l, 0, l);
     l *= 2;
   }
-  for (int i = 0; i < log4n_; ++i) {
-    m /= 4;
-    Dft4(x, m, l, 0, l);
-    l *= 4;
+  if (n_ <= kCacheSize) {
+    for (int i = 0; i < log4n_; ++i) {
+      m /= 4;
+      Dft4(x, m, l, 0, l);
+      l *= 4;
+    }
+  } else {
+    int i = 0;
+    for (i = 0; i < log4n_ && m > kCacheSize; ++i) {
+      m /= 4;
+      Dft4(x, m, l, 0, l);
+      l *= 4;
+    }
+    int n_block = n_ / kCacheSize;
+    for (int j = 0; j < n_block; ++j) {
+      int m_block = m;
+      int l_block = l;
+      for (int i_block = i, j_block = l_block / n_block; i_block < log4n_;
+           ++i_block) {
+        int j0 = j * j_block;
+        int j1 = (j + 1) * j_block;
+        m_block /= 4;
+        Dft4(x, m_block, l_block, j0, j1);
+        l_block *= 4;
+        j_block *= 4;
+      }
+    }
   }
 }
 
