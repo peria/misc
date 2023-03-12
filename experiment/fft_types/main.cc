@@ -20,10 +20,9 @@ constexpr int kMaxLogN = 23;
 
 int main(int argc, const char**) {
   FactoryVec factories{
-      FMTFactory<DIF>::GetFactory(),
-      FMTFactory<DIT>::GetFactory(),
+      FMTFactory<DIF>::GetFactory(), FMTFactory<DIT>::GetFactory(),
       FMTFactory<DDIT>::GetFactory(),
-      FMTFactory<DIT3>::GetFactory(),
+      // FMTFactory<DIT3>::GetFactory(),  // Almost same as DDIT.
   };
 
   if (!TestFMTs(factories) || argc > 1) {
