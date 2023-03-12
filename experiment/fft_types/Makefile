@@ -5,7 +5,7 @@ CXXFLAGS=-O2 -std=c++14
 
 SRCS=main.cc fmt.cc
 HEADS=fmt.h complex.h
-HEADS+=dit.h dif.h ddit.h
+HEADS+=dit.h dif.h ddit.h dit3.h
 
 all: test
 

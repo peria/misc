@@ -6,6 +6,7 @@
 #include "ddit.h"
 #include "dif.h"
 #include "dit.h"
+#include "dit3.h"
 #include "fmt.h"
 
 using FactoryVec = std::vector<std::shared_ptr<FMTFactoryBase>>;
@@ -22,6 +23,7 @@ int main(int argc, const char**) {
       FMTFactory<DIF>::GetFactory(),
       FMTFactory<DIT>::GetFactory(),
       FMTFactory<DDIT>::GetFactory(),
+      FMTFactory<DIT3>::GetFactory(),
   };
 
   if (!TestFMTs(factories) || argc > 1) {
