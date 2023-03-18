@@ -9,6 +9,10 @@
 #define LOG std::cerr << "(" << __LINE__ << "): "
 
 class FMT {
+ protected:
+  static constexpr int kLog2CacheSize = 16;
+  static constexpr int kCacheSize = 1 << kLog2CacheSize;
+
  public:
   FMT(int logn)
       : logn_(logn), log2n_(logn % 2), log4n_(logn / 2), n_(1 << logn) {}

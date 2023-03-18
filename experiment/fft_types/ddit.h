@@ -3,6 +3,8 @@
 #include <cmath>
 
 class DDIT : public FMT {
+  static_assert(FMT::kLog2CacheSize % 2 == 0, "kLog2CachSize must be even");
+
  public:
   DDIT(int logn) : FMT(logn) { Init(); }
   double GetMemory() const override;
@@ -87,7 +89,6 @@ void DDIT::IRft(Complex* x) const {
 }
 
 void DDIT::Dft(Complex* x) const {
-  static constexpr int kCacheSize = 1 << 18;
   int m = n_;
   int l = 1;
   for (int i = 0; i < log2n_; ++i) {
@@ -128,11 +129,35 @@ void DDIT::Dft(Complex* x) const {
 void DDIT::IDft(Complex* x) const {
   int m = 1;
   int l = n_;
-  for (int i = 0; i < log4n_; ++i) {
-    l /= 4;
-    IDft4(x, m, l, 0, l);
-    m *= 4;
+  if (n_ <= kCacheSize) {
+    for (int i = 0; i < log4n_; ++i) {
+      l /= 4;
+      IDft4(x, m, l, 0, l);
+      m *= 4;
+    }
+  } else {
+    const int bn = n_ / kCacheSize;
+    for (int bj = 0; bj < bn; ++bj) {
+      int bm = 1;
+      int bl = kCacheSize;
+      int bj_size = kCacheSize;
+      for (int i = 0; i < kLog2CacheSize / 2; ++i) {
+        bl /= 4;
+        bj_size /= 4;
+        IDft4(x, bm, bl, bj * bj_size, (bj + 1) * bj_size);
+        bm *= 4;
+      }
+    }
+
+    m = kCacheSize;
+    l = n_ >> kLog2CacheSize;
+    for (int i = kLog2CacheSize / 2; i < log4n_; ++i) {
+      l /= 4;
+      IDft4(x, m, l, 0, l);
+      m *= 4;
+    }
   }
+
   for (int i = 0; i < log2n_; ++i) {
     l /= 2;
     Dft2(x, m, l, 0, l);
