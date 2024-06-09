@@ -2,19 +2,19 @@ use std::f64::consts::PI;
 
 use super::Complex;
 
-pub struct DITFactory {}
+pub struct Radix2Factory {}
 
-impl super::FFTFactory for DITFactory {
+impl super::FFTFactory for Radix2Factory {
     fn create(&self, logn: usize) -> Box<dyn super::FFT> {
-        Box::new(DIT::new(logn))
+        Box::new(Radix2::new(logn))
     }
 
     fn name(&self) -> &str {
-        "DIT"
+        "R2"
     }
 }
 
-struct DIT {
+struct Radix2 {
     n: usize,
     logn: usize,
     log2n: usize,
@@ -23,7 +23,7 @@ struct DIT {
     qw: Complex,
 }
 
-impl DIT {
+impl Radix2 {
     pub fn new(logn: usize) -> Self {
         let n = 1 << logn;
 
@@ -53,7 +53,7 @@ impl DIT {
     }
 }
 
-impl super::FFT for DIT {
+impl super::FFT for Radix2 {
     fn rft(&self, x: &mut Vec<Complex>) {
         for i in 0..(self.n / 4) {
             let w0 = &self.ws[i];

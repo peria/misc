@@ -6,7 +6,7 @@ use fft::Complex;
 use fft::FFTFactory;
 
 fn main() {
-    let factories: Vec<Box<dyn FFTFactory>> = vec![Box::new(fft::DITFactory {})];
+    let factories: Vec<Box<dyn FFTFactory>> = vec![Box::new(fft::Radix2Factory {})];
 
     print_names(&factories);
     measure_performace(&factories);
