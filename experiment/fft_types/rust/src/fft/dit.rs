@@ -19,15 +19,32 @@ struct DIT {
     logn: usize,
     log2n: usize,
     log4n: usize,
+    ws: Vec<Complex>,
 }
 
 impl DIT {
     pub fn new(logn: usize) -> Self {
+        let n = 1 << logn;
+
+        let mut ws = Vec::new();
+        let mut m = n;
+        let mut theta = 2.0 * PI / n as f64;
+        for _ in 0..logn {
+            m /= 2;
+            for j in 0..m {
+                let t = theta * j as f64;
+                let w1 = Complex::from((t.cos(), t.sin()));
+                ws.push(w1);
+            }
+            theta *= 2.0;
+        }
+
         Self {
-            n: 1 << logn,
+            n,
             logn,
             log2n: logn % 2,
             log4n: logn / 2,
+            ws,
         }
     }
 }
@@ -57,22 +74,21 @@ impl super::FFT for DIT {
     fn dft(&self, x: &mut Vec<Complex>) {
         let mut m = self.n;
         let mut l = 1;
-        let mut theta = 2.0 * PI / self.n as f64;
+        let mut wi = 0;
         for _ in 0..self.logn {
             m /= 2;
             for k in 0..l {
                 for j in 0..m {
-                    let t = theta * j as f64;
-                    let w1 = Complex::from((t.cos(), t.sin()));
+                    let w1 = &self.ws[wi + j];
                     let j0 = 2 * m * k + j;
                     let j1 = 2 * m * k + j + m;
                     let x0 = x[j0].clone();
                     let x1 = x[j1].clone();
                     x[j0] = x0 + &x1;
-                    x[j1] = (x0 - &x1) * &w1;
+                    x[j1] = (x0 - &x1) * w1;
                 }
             }
-            theta *= 2.0;
+            wi += m;
             l *= 2;
         }
     }
@@ -80,14 +96,13 @@ impl super::FFT for DIT {
     fn idft(&self, x: &mut Vec<Complex>) {
         let mut m = 1;
         let mut l = self.n;
-        let mut theta = 2.0 * PI;
+        let mut wi = self.ws.len();
         for _ in 0..self.logn {
             l /= 2;
-            theta *= 0.5;
+            wi -= m;
             for k in 0..l {
                 for j in 0..m {
-                    let t = theta * j as f64;
-                    let w1 = Complex::from((t.cos(), t.sin())).conj();
+                    let w1 = self.ws[wi + j].conj();
                     let j0 = 2 * m * k + j;
                     let j1 = 2 * m * k + j + m;
                     let x0 = x[j0].clone();
