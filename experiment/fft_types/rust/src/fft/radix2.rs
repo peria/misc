@@ -37,7 +37,7 @@ impl Radix2 {
             }
             theta *= 2.0;
         }
-        let qt = theta / 4.0;
+        let qt = 2.0 * PI / n as f64 / 4.0;
         let qw = Complex::from((qt.cos(), qt.sin()));
 
         Self { n, logn, ws, qw }
@@ -78,43 +78,50 @@ impl super::FFT for Radix2 {
     fn dft(&self, x: &mut Vec<Complex>) {
         let mut m = self.n;
         let mut l = 1;
-        let mut wi = 0;
+        let mut theta = 2.0 * PI / self.n as f64;
         for _ in 0..self.logn {
             m /= 2;
-            for k in 0..l {
+            for i in 0..l {
+                let t = theta * i as f64;
+                let w1 = Complex::from((t.cos(), t.sin()));
                 for j in 0..m {
-                    let w1 = &self.ws[wi + j];
-                    let j0 = 2 * m * k + j;
-                    let j1 = 2 * m * k + j + m;
-                    let x0 = x[j0].clone();
-                    x[j0] = x0 + &x[j1];
-                    x[j1] = (x0 - &x[j1]) * w1;
+                    let k0 = j + i * 2 * m;
+                    let k1 = i * 2 * m + j + m;
+                    let x0 = x[k0].clone();
+                    let x1 = x[k1].clone();
+                    x[k0] = x0 + &x1;
+                    x[k1] = (x0 - &x1) * &w1;
                 }
             }
-            wi += m;
             l *= 2;
+            theta *= 2.0;
         }
     }
 
     fn idft(&self, x: &mut Vec<Complex>) {
         let mut m = 1;
         let mut l = self.n;
-        let mut wi = self.ws.len();
+        let mut theta = 2.0 * PI;
         for _ in 0..self.logn {
             l /= 2;
-            wi -= m;
-            for k in 0..l {
+            theta /= 2.0;
+            for i in 0..l {
+                let t = theta * i as f64;
+                let w1 = Complex::from((t.cos(), t.sin())).conj();
                 for j in 0..m {
-                    let w1 = self.ws[wi + j].conj();
-                    let j0 = 2 * m * k + j;
-                    let j1 = 2 * m * k + j + m;
-                    let x0 = x[j0].clone();
-                    x[j0] = x0 + &x[j1];
-                    x[j1] = (x0 - &x[j1]) * &w1;
+                    let k0 = j + i * 2 * m;
+                    let k1 = i * 2 * m + j + m;
+                    let x0 = x[k0].clone();
+                    let x1 = x[k1] * &w1;
+                    x[k0] = x0 + &x1;
+                    x[k1] = x0 - &x1;
                 }
             }
             m *= 2;
         }
+
+        let inv = 1.0 / self.n as f64;
+        x.iter_mut().for_each(|xi| *xi *= inv);
     }
 
     fn bytes(&self) -> usize {
