@@ -88,7 +88,7 @@ impl super::FFT for Radix4 {
         let mut m = self.n;
         let mut l = 1;
         let mut wi = 0;
-        for _ in 0..self.log2n {
+        for _ in 0..(self.log4n * 2) {
             m /= 2;
             for k in 0..l {
                 for j in 0..m {
@@ -103,16 +103,15 @@ impl super::FFT for Radix4 {
             wi += m;
             l *= 2;
         }
-        for _ in 0..(self.log4n * 2) {
+        for _ in 0..self.log2n {
             m /= 2;
             for k in 0..l {
                 for j in 0..m {
-                    let w1 = &self.ws[wi + j];
                     let j0 = 2 * m * k + j;
                     let j1 = 2 * m * k + j + m;
                     let x0 = x[j0].clone();
                     x[j0] = x0 + &x[j1];
-                    x[j1] = (x0 - &x[j1]) * w1;
+                    x[j1] = x0 - &x[j1];
                 }
             }
             wi += m;
