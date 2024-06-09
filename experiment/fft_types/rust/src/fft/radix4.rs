@@ -2,26 +2,28 @@ use std::f64::consts::PI;
 
 use super::Complex;
 
-pub struct Radix2Factory {}
+pub struct Radix4Factory {}
 
-impl super::FFTFactory for Radix2Factory {
+impl super::FFTFactory for Radix4Factory {
     fn create(&self, logn: usize) -> Box<dyn super::FFT> {
-        Box::new(Radix2::new(logn))
+        Box::new(Radix4::new(logn))
     }
 
     fn name(&self) -> &str {
-        "R2"
+        "R4"
     }
 }
 
-struct Radix2 {
+struct Radix4 {
     n: usize,
     logn: usize,
+    log2n: usize,
+    log4n: usize,
     ws: Vec<Complex>,
     qw: Complex,
 }
 
-impl Radix2 {
+impl Radix4 {
     pub fn new(logn: usize) -> Self {
         let n = 1 << logn;
 
@@ -40,11 +42,18 @@ impl Radix2 {
         let qt = theta / 4.0;
         let qw = Complex::from((qt.cos(), qt.sin()));
 
-        Self { n, logn, ws, qw }
+        Self {
+            n,
+            logn,
+            log2n: logn % 2,
+            log4n: logn / 2,
+            ws,
+            qw,
+        }
     }
 }
 
-impl super::FFT for Radix2 {
+impl super::FFT for Radix4 {
     fn rft(&self, x: &mut Vec<Complex>) {
         for i in 0..(self.n / 4) {
             let w0 = &self.ws[i];
@@ -79,7 +88,22 @@ impl super::FFT for Radix2 {
         let mut m = self.n;
         let mut l = 1;
         let mut wi = 0;
-        for _ in 0..self.logn {
+        for _ in 0..self.log2n {
+            m /= 2;
+            for k in 0..l {
+                for j in 0..m {
+                    let w1 = &self.ws[wi + j];
+                    let j0 = 2 * m * k + j;
+                    let j1 = 2 * m * k + j + m;
+                    let x0 = x[j0].clone();
+                    x[j0] = x0 + &x[j1];
+                    x[j1] = (x0 - &x[j1]) * w1;
+                }
+            }
+            wi += m;
+            l *= 2;
+        }
+        for _ in 0..(self.log4n * 2) {
             m /= 2;
             for k in 0..l {
                 for j in 0..m {

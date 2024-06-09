@@ -1,8 +1,10 @@
 mod complex;
 mod radix2;
+mod radix4;
 
 pub use complex::Complex;
 pub use radix2::Radix2Factory;
+pub use radix4::Radix4Factory;
 
 pub trait FFTFactory {
     fn create(&self, n: usize) -> Box<dyn FFT>;
