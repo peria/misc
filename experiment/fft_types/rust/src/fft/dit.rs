@@ -20,6 +20,7 @@ struct DIT {
     log2n: usize,
     log4n: usize,
     ws: Vec<Complex>,
+    qw: Complex,
 }
 
 impl DIT {
@@ -38,6 +39,8 @@ impl DIT {
             }
             theta *= 2.0;
         }
+        let qt = theta / 4.0;
+        let qw = Complex::from((qt.cos(), qt.sin()));
 
         Self {
             n,
@@ -45,17 +48,22 @@ impl DIT {
             log2n: logn % 2,
             log4n: logn / 2,
             ws,
+            qw,
         }
     }
 }
 
 impl super::FFT for DIT {
     fn rft(&self, x: &mut Vec<Complex>) {
-        let t = 2.0 * PI / self.n as f64 / 4.0;
-        for (i, xi) in x.iter_mut().enumerate() {
-            let theta = t * i as f64;
-            let w = Complex::from((theta.cos(), theta.sin()));
-            *xi *= &w;
+        for i in 0..(self.n / 4) {
+            let w0 = &self.ws[i];
+            let w1 = &(self.qw * w0);
+            let w2 = &(self.qw * w1);
+            let w3 = &(self.qw * w2);
+            x[4 * i + 0] *= w0;
+            x[4 * i + 1] *= w1;
+            x[4 * i + 2] *= w2;
+            x[4 * i + 3] *= w3;
         }
         self.dft(x);
     }
@@ -63,11 +71,16 @@ impl super::FFT for DIT {
     fn irft(&self, x: &mut Vec<Complex>) {
         self.idft(x);
 
-        let t = 2.0 * PI / self.n as f64 / 4.0;
-        for (i, xi) in x.iter_mut().enumerate() {
-            let theta = t * i as f64;
-            let w = Complex::from((theta.cos(), theta.sin())).conj();
-            *xi *= &w;
+        let qw = self.qw.conj();
+        for i in 0..(self.n / 4) {
+            let w0 = &self.ws[i].conj();
+            let w1 = &(qw * w0);
+            let w2 = &(qw * w1);
+            let w3 = &(qw * w2);
+            x[4 * i + 0] *= w0;
+            x[4 * i + 1] *= w1;
+            x[4 * i + 2] *= w2;
+            x[4 * i + 3] *= w3;
         }
     }
 
@@ -83,9 +96,8 @@ impl super::FFT for DIT {
                     let j0 = 2 * m * k + j;
                     let j1 = 2 * m * k + j + m;
                     let x0 = x[j0].clone();
-                    let x1 = x[j1].clone();
-                    x[j0] = x0 + &x1;
-                    x[j1] = (x0 - &x1) * w1;
+                    x[j0] = x0 + &x[j1];
+                    x[j1] = (x0 - &x[j1]) * w1;
                 }
             }
             wi += m;
@@ -106,9 +118,8 @@ impl super::FFT for DIT {
                     let j0 = 2 * m * k + j;
                     let j1 = 2 * m * k + j + m;
                     let x0 = x[j0].clone();
-                    let x1 = x[j1].clone();
-                    x[j0] = x0 + &x1;
-                    x[j1] = (x0 - &x1) * &w1;
+                    x[j0] = x0 + &x[j1];
+                    x[j1] = (x0 - &x[j1]) * &w1;
                 }
             }
             m *= 2;
@@ -116,7 +127,7 @@ impl super::FFT for DIT {
     }
 
     fn bytes(&self) -> usize {
-        0
+        self.ws.len() * 16 + 16
     }
 
     fn flops(&self) -> usize {
