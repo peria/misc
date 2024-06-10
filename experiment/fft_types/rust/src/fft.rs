@@ -27,7 +27,7 @@ mod test {
     use super::Radix4Factory;
 
     #[test]
-    fn reverse() {
+    fn back_test() {
         let factories: Vec<Box<dyn FFTFactory>> =
             vec![Box::new(Radix2Factory {}), Box::new(Radix4Factory {})];
         for factory in factories.iter() {
@@ -44,6 +44,39 @@ mod test {
                     eprintln!("[{:4}/{:4}] {:.4} - {:.4}", i, n, xi.real, xi.imag);
                     debug_assert!((xi.real - i as f64 - 1.0).abs() < 1e-3);
                     debug_assert!(xi.imag.abs() < 1e-3);
+                }
+            }
+            eprintln!("{} OK", factory.name());
+        }
+    }
+
+    #[test]
+    fn convolution_test() {
+        let factories: Vec<Box<dyn FFTFactory>> =
+            vec![Box::new(Radix2Factory {}), Box::new(Radix4Factory {})];
+        for factory in factories.iter() {
+            eprintln!("Testing {}", factory.name());
+            for logn in 2..10 {
+                let n = 1 << logn;
+                let mut x = vec![Complex::new(); n];
+                for xi in x.iter_mut() {
+                    xi.real = 1.0;
+                }
+                let fft = factory.create(logn);
+                fft.rft(&mut x);
+                for xi in x.iter_mut() {
+                    let r = xi.real;
+                    let i = xi.imag;
+                    xi.real = r * r - i * i;
+                    xi.imag = 2.0 * r * i;
+                }
+                fft.irft(&mut x);
+                for (i, xi) in x.iter().enumerate() {
+                    eprintln!("[{:4}/{:4}] {:.4} + {:.4}i", i, n, xi.real, xi.imag);
+                }
+                for (i, xi) in x.iter().enumerate() {
+                    debug_assert!((xi.real - (1 + i) as f64).abs() < 1e-3);
+                    debug_assert!((xi.imag - (n - 1 - i) as f64).abs() < 1e-3);
                 }
             }
             eprintln!("{} OK", factory.name());

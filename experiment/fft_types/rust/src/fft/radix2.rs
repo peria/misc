@@ -27,16 +27,19 @@ impl Radix2 {
 
         let mut ws = Vec::new();
         let mut m = n;
+        let mut l = 1;
         let mut theta = 2.0 * PI / n as f64;
         for _ in 0..logn {
             m /= 2;
-            for j in 0..m {
-                let t = theta * j as f64;
+            for i in 0..l {
+                let t = theta * i as f64;
                 let w1 = Complex::from((t.cos(), t.sin()));
                 ws.push(w1);
             }
+            l *= 2;
             theta *= 2.0;
         }
+
         let qt = 2.0 * PI / n as f64 / 4.0;
         let qw = Complex::from((qt.cos(), qt.sin()));
 
@@ -46,15 +49,12 @@ impl Radix2 {
 
 impl super::FFT for Radix2 {
     fn rft(&self, x: &mut Vec<Complex>) {
-        for i in 0..(self.n / 4) {
-            let w0 = &self.ws[i];
-            let w1 = &(self.qw * w0);
-            let w2 = &(self.qw * w1);
-            let w3 = &(self.qw * w2);
-            x[4 * i + 0] *= w0;
-            x[4 * i + 1] *= w1;
-            x[4 * i + 2] *= w2;
-            x[4 * i + 3] *= w3;
+        let theta = 2.0 * PI / self.n as f64;
+        let qt = theta / 4.0;
+        for (i, xi) in x.iter_mut().enumerate() {
+            let t = qt * i as f64;
+            let w = Complex::from((t.cos(), t.sin()));
+            *xi *= &w;
         }
         self.dft(x);
     }
@@ -62,16 +62,12 @@ impl super::FFT for Radix2 {
     fn irft(&self, x: &mut Vec<Complex>) {
         self.idft(x);
 
-        let qw = self.qw.conj();
-        for i in 0..(self.n / 4) {
-            let w0 = &self.ws[i].conj();
-            let w1 = &(qw * w0);
-            let w2 = &(qw * w1);
-            let w3 = &(qw * w2);
-            x[4 * i + 0] *= w0;
-            x[4 * i + 1] *= w1;
-            x[4 * i + 2] *= w2;
-            x[4 * i + 3] *= w3;
+        let theta = 2.0 * PI / self.n as f64;
+        let qt = theta / 4.0;
+        for (i, xi) in x.iter_mut().enumerate() {
+            let t = qt * i as f64;
+            let w = Complex::from((t.cos(), t.sin())).conj();
+            *xi *= &w;
         }
     }
 
@@ -81,12 +77,12 @@ impl super::FFT for Radix2 {
         let mut theta = 2.0 * PI / self.n as f64;
         for _ in 0..self.logn {
             m /= 2;
-            for i in 0..l {
+            for i in 0..m {
                 let t = theta * i as f64;
                 let w1 = Complex::from((t.cos(), t.sin()));
-                for j in 0..m {
-                    let k0 = j + i * 2 * m;
-                    let k1 = i * 2 * m + j + m;
+                for j in 0..l {
+                    let k0 = j * 2 * m + i;
+                    let k1 = j * 2 * m + i + m;
                     let x0 = x[k0].clone();
                     let x1 = x[k1].clone();
                     x[k0] = x0 + &x1;
@@ -105,12 +101,12 @@ impl super::FFT for Radix2 {
         for _ in 0..self.logn {
             l /= 2;
             theta /= 2.0;
-            for i in 0..l {
+            for i in 0..m {
                 let t = theta * i as f64;
                 let w1 = Complex::from((t.cos(), t.sin())).conj();
-                for j in 0..m {
-                    let k0 = j + i * 2 * m;
-                    let k1 = i * 2 * m + j + m;
+                for j in 0..l {
+                    let k0 = j * 2 * m + i;
+                    let k1 = j * 2 * m + i + m;
                     let x0 = x[k0].clone();
                     let x1 = x[k1] * &w1;
                     x[k0] = x0 + &x1;
