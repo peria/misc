@@ -26,27 +26,29 @@ struct Radix4 {
 impl Radix4 {
     pub fn new(logn: usize) -> Self {
         let n = 1 << logn;
+        let log2n = logn % 2;
+        let log4n = logn / 2;
 
         let mut ws = Vec::new();
         let mut m = n;
         let mut theta = 2.0 * PI / n as f64;
         for _ in 0..logn {
             m /= 2;
-            for j in 0..m {
-                let t = theta * j as f64;
-                let w1 = Complex::from((t.cos(), t.sin()));
-                ws.push(w1);
+            for i in 0..m {
+                let t = theta * i as f64;
+                ws.push(Complex::from((t.cos(), t.sin())));
             }
             theta *= 2.0;
         }
-        let qt = theta / 4.0;
+
+        let qt = 2.0 * PI / n as f64 / 4.0;
         let qw = Complex::from((qt.cos(), qt.sin()));
 
         Self {
             n,
             logn,
-            log2n: logn % 2,
-            log4n: logn / 2,
+            log2n,
+            log4n,
             ws,
             qw,
         }
@@ -55,12 +57,18 @@ impl Radix4 {
 
 impl super::FFT for Radix4 {
     fn rft(&self, x: &mut Vec<Complex>) {
-        let theta = 2.0 * PI / self.n as f64;
-        let qt = theta / 4.0;
-        for (i, xi) in x.iter_mut().enumerate() {
-            let t = qt * i as f64;
-            let w = Complex::from((t.cos(), t.sin()));
-            *xi *= &w;
+        let qw1 = &self.qw;
+        let qw2 = &(*qw1 * qw1);
+        let qw3 = &(*qw2 * qw1);
+        for i in 0..(self.n / 4) {
+            let w0 = &self.ws[i];
+            let w1 = &(*w0 * qw1);
+            let w2 = &(*w0 * qw2);
+            let w3 = &(*w0 * qw3);
+            x[4 * i + 0] *= w0;
+            x[4 * i + 1] *= w1;
+            x[4 * i + 2] *= w2;
+            x[4 * i + 3] *= w3;
         }
         self.dft(x);
     }
@@ -68,53 +76,86 @@ impl super::FFT for Radix4 {
     fn irft(&self, x: &mut Vec<Complex>) {
         self.idft(x);
 
-        let theta = 2.0 * PI / self.n as f64;
-        let qt = theta / 4.0;
-        for (i, xi) in x.iter_mut().enumerate() {
-            let t = qt * i as f64;
-            let w = Complex::from((t.cos(), t.sin())).conj();
-            *xi *= &w;
+        let qw1 = &self.qw.conj();
+        let qw2 = &(*qw1 * qw1);
+        let qw3 = &(*qw2 * qw1);
+        for i in 0..(self.n / 4) {
+            let w0 = &self.ws[i].conj();
+            let w1 = &(*w0 * qw1);
+            let w2 = &(*w0 * qw2);
+            let w3 = &(*w0 * qw3);
+            x[4 * i + 0] *= w0;
+            x[4 * i + 1] *= w1;
+            x[4 * i + 2] *= w2;
+            x[4 * i + 3] *= w3;
         }
     }
 
     fn dft(&self, x: &mut Vec<Complex>) {
         let mut m = self.n;
         let mut l = 1;
-        let mut theta = 2.0 * PI / self.n as f64;
-        for _ in 0..self.logn {
+        let mut iw = 0;
+        for _ in 0..self.log4n {
+            m /= 4;
+            for i in 0..m {
+                let w1 = &self.ws[iw + i];
+                let w2 = &self.ws[iw + 2 * m + i];
+                let w3 = &(*w1 * w2);
+                for j in 0..l {
+                    let k0 = j * 4 * m + i;
+                    let k1 = j * 4 * m + i + m;
+                    let k2 = j * 4 * m + i + 2 * m;
+                    let k3 = j * 4 * m + i + 3 * m;
+                    let x0 = &x[k0];
+                    let x2 = &x[k2];
+                    let x1 = &x[k1];
+                    let x3 = &x[k3];
+                    let y0 = *x0 + x2;
+                    let y1 = *x1 + x3;
+                    let y2 = *x0 - x2;
+                    let y3 = (*x1 - x3).i();
+                    x[k0] = y0 + &y1;
+                    x[k1] = (y0 - &y1) * w2;
+                    x[k2] = (y2 + &y3) * w1;
+                    x[k3] = (y2 - &y3) * w3;
+                }
+            }
+            l *= 4;
+            iw += 3 * m;
+        }
+
+        for _ in 0..self.log2n {
             m /= 2;
             for i in 0..m {
-                let t = theta * i as f64;
-                let w1 = Complex::from((t.cos(), t.sin()));
+                let w1 = &self.ws[iw + i];
                 for j in 0..l {
                     let k0 = j * 2 * m + i;
                     let k1 = j * 2 * m + i + m;
                     let x0 = x[k0].clone();
                     let x1 = x[k1].clone();
                     x[k0] = x0 + &x1;
-                    x[k1] = (x0 - &x1) * &w1;
+                    x[k1] = (x0 - &x1) * w1;
                 }
             }
             l *= 2;
-            theta *= 2.0;
+            iw += m;
         }
     }
 
     fn idft(&self, x: &mut Vec<Complex>) {
         let mut m = 1;
         let mut l = self.n;
-        let mut theta = 2.0 * PI;
+        let mut iw = self.n - 1;
         for _ in 0..self.logn {
             l /= 2;
-            theta /= 2.0;
+            iw -= m;
             for i in 0..m {
-                let t = theta * i as f64;
-                let w1 = Complex::from((t.cos(), t.sin())).conj();
+                let w1 = &self.ws[iw + i].conj();
                 for j in 0..l {
                     let k0 = j * 2 * m + i;
                     let k1 = j * 2 * m + i + m;
                     let x0 = x[k0].clone();
-                    let x1 = x[k1] * &w1;
+                    let x1 = x[k1] * w1;
                     x[k0] = x0 + &x1;
                     x[k1] = x0 - &x1;
                 }
