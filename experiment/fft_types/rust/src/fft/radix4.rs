@@ -14,6 +14,7 @@ impl super::FFTFactory for Radix4Factory {
     }
 }
 
+#[allow(dead_code)]
 struct Radix4 {
     n: usize,
     logn: usize,
@@ -146,7 +147,7 @@ impl super::FFT for Radix4 {
         let mut m = 1;
         let mut l = self.n;
         let mut iw = self.n - 1;
-        for _ in 0..self.logn {
+        for _ in 0..self.log2n {
             l /= 2;
             iw -= m;
             for i in 0..m {
@@ -162,6 +163,34 @@ impl super::FFT for Radix4 {
             }
             m *= 2;
         }
+        for _ in 0..self.log4n {
+            l /= 4;
+            iw -= 3 * m;
+            for i in 0..m {
+                let w1 = &self.ws[iw + i].conj();
+                let w2 = &self.ws[iw + 2 * m + i].conj();
+                let w3 = &(*w1 * w2);
+                for j in 0..l {
+                    let k0 = j * 4 * m + i;
+                    let k1 = j * 4 * m + i + m;
+                    let k2 = j * 4 * m + i + 2 * m;
+                    let k3 = j * 4 * m + i + 3 * m;
+                    let x0 = &x[k0];
+                    let x1 = &(x[k1] * w2);
+                    let x2 = &(x[k2] * w1);
+                    let x3 = &(x[k3] * w3);
+                    let y0 = *x0 + x1;
+                    let y1 = *x0 - x1;
+                    let y2 = *x2 + x3;
+                    let y3 = (*x3 - x2).i();
+                    x[k0] = y0 + &y2;
+                    x[k1] = y1 + &y3;
+                    x[k2] = y0 - &y2;
+                    x[k3] = y1 - &y3;
+                }
+            }
+            m *= 4;
+        }
 
         let inv = 1.0 / self.n as f64;
         x.iter_mut().for_each(|xi| *xi *= inv);
@@ -172,6 +201,6 @@ impl super::FFT for Radix4 {
     }
 
     fn flops(&self) -> usize {
-        self.n / 2 * self.logn * 10
+        self.n / 2 * self.log2n * 10 + self.n / 4 * self.log4n * 34
     }
 }

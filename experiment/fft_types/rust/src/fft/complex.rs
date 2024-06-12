@@ -7,6 +7,7 @@ pub struct Complex {
 }
 
 impl Complex {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Complex {
             real: 0.0,

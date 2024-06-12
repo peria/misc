@@ -24,11 +24,11 @@ fn print_names(factories: &Vec<Box<dyn FFTFactory>>) {
 }
 
 fn measure_performace(factories: &Vec<Box<dyn FFTFactory>>) {
-    const MAX_LOGN: usize = 17;
+    const MAX_LOGN: usize = 23;
     for logn in 2..=MAX_LOGN {
         print!("2^{:2} |", logn);
         let n = 1 << logn;
-        let mut x = vec![Complex::new(); n];
+        let mut x = vec![Complex::from((1f64, 0f64)); n];
         for factory in factories.iter() {
             let fft = factory.create(logn);
             let start = time::Instant::now();

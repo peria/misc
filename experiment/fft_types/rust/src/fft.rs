@@ -20,6 +20,7 @@ pub trait FFT {
     fn flops(&self) -> usize;
 }
 
+#[cfg(test)]
 mod test {
     use super::Complex;
     use super::FFTFactory;
